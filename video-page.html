@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xitel视频播放页</title>
+    <style>
+        body {
+            font-family: 微软雅黑, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            color: #212529;
+        }
+        video {
+            width: 600px;
+            max-width: 90%;
+            margin: 20px auto;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+        }
+        .back-link {
+            color: #0d6efd;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>希特勒视频播放页</h1>
+
+    <!-- 无封面图，仅保留播放控制，视频路径直接写文件名 -->
+    <video controls>
+        <source src="xitelei.mp4" type="video/mp4">
+        你的浏览器不支持 HTML5 视频播放，请更换 Chrome、Edge 浏览器！
+    </video>
+
+    <a href="index.html" class="back-link">← 返回首页</a>
+</body>
+</html>
