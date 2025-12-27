@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>希特勒视频</title>
+    <title>希特勒</title>
     <style>
         /* 简单美化，让页面更整洁 */
         body {
@@ -35,4 +35,19 @@
     </style>
 </head>
 <body>
-    <h1>我的专属视频播放页</h1>
+    <h1>希特勒视频播放页</h1>
+
+    <!-- 核心补充：完整的 video 标签 + source 标签，用于加载本地 MP4 视频 -->
+    <video controls="controls" poster="https://gordon127.github.io./video-page.html">
+        <!-- 关键：source 标签（指定视频路径和格式，你缺失的核心标签） -->
+        <!-- 替换 ./你的视频文件名.mp4 为你实际上传的 MP4 文件名（如 ./my-video.mp4） -->
+        <source src="./xitelei.mp4" type="video/mp4">
+        
+        <!-- 备用提示：浏览器不支持 HTML5 视频时显示的文字 -->
+        你的浏览器不支持 HTML5 视频播放，请更换 Chrome、Edge 等现代浏览器！
+    </video>
+
+    <!-- 返回首页的链接（保留你原有样式，可正常使用） -->
+    <a href="./index.html" class="back-link">← 返回首页</a>
+</body>
+</html>
