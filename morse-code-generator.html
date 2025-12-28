@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摩斯电码生成器（编码+解码）</title>
+    <!-- 后续CSS样式将写在这里 -->
+    <style>
+        * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "微软雅黑", sans-serif;
+}
+
+body {
+    background-color: #f8f9fa; /* 页面背景色：浅灰色 */
+    padding: 50px 20px; /* 页面内边距，避免元素贴边 */
+    text-align: center; /* 页面整体文字居中 */
+}
+
+.container {
+    max-width: 600px; /* 容器最大宽度，适配电脑端 */
+    margin: 0 auto; /* 容器水平居中 */
+    background-color: #fff; /* 容器背景色：白色 */
+    padding: 30px; /* 容器内边距 */
+    border-radius: 10px; /* 容器圆角 */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 容器阴影，增加立体感 */
+}
+
+h1 {
+    color: #212529; /* 标题颜色：深灰色 */
+    margin-bottom: 30px; /* 标题底部间距 */
+    font-size: 24px; /* 标题字体大小 */
+}
+
+.input-area, .output-area {
+    margin-bottom: 20px; /* 输入/输出区域底部间距 */
+    text-align: left; /* 标签文字左对齐 */
+}
+
+label {
+    display: block; /* 标签独占一行 */
+    margin-bottom: 8px; /* 标签底部间距 */
+    color: #495057; /* 标签颜色：中灰色 */
+    font-weight: 500; /* 标签文字加粗 */
+}
+
+textarea {
+    width: 100%; /* 文本框宽度100%，填满容器 */
+    padding: 12px; /* 文本框内边距 */
+    border: 1px solid #ced4da; /* 文本框边框 */
+    border-radius: 6px; /* 文本框圆角 */
+    resize: none; /* 禁止拖动文本框大小 */
+    min-height: 100px; /* 文本框最小高度 */
+    font-size: 16px; /* 文本框字体大小 */
+    color: #212529; /* 文本框文字颜色 */
+}
+
+.btn-group {
+    display: flex; /* 弹性布局，让按钮横向排列 */
+    gap: 15px; /* 按钮之间的间距 */
+    justify-content: center; /* 按钮水平居中 */
+    margin-bottom: 20px; /* 按钮组底部间距 */
+}
+
+button {
+    padding: 10px 25px; /* 按钮内边距（上下/左右） */
+    border: none; /* 去除按钮默认边框 */
+    border-radius: 6px; /* 按钮圆角 */
+    font-size: 16px; /* 按钮字体大小 */
+    color: #fff; /* 按钮文字颜色：白色 */
+    cursor: pointer; /* 鼠标悬浮时显示手型 */
+    transition: background-color 0.3s; /* 按钮颜色过渡效果，更顺滑 */
+}
+
+/* 不同功能按钮的颜色区分 */
+.encode-btn {
+    background-color: #0d6efd; /* 编码按钮：蓝色 */
+}
+
+.encode-btn:hover {
+    background-color: #0b5ed7; /* 鼠标悬浮时：深一点的蓝色 */
+}
+
+.decode-btn {
+    background-color: #28a745; /* 解码按钮：绿色 */
+}
+
+.decode-btn:hover {
+    background-color: #218838; /* 鼠标悬浮时：深一点的绿色 */
+}
+
+.clear-btn {
+    background-color: #dc3545; /* 清空按钮：红色 */
+}
+
+.clear-btn:hover {
+    background-color: #c82333; /* 鼠标悬浮时：深一点的红色 */
+}
+
+.copy-btn {
+    background-color: #17a2b8; /* 复制按钮：青色 */
+}
+
+.copy-btn:hover {
+    background-color: #138496; /* 鼠标悬浮时：深一点的青色 */
+}
+
+.tip {
+    color: #6c757d; /* 提示文字颜色：浅灰色 */
+    font-size: 14px; /* 提示文字字体大小 */
+    margin-top: 10px; /* 提示文字顶部间距 */
+}
+
+    </style>
+</head>
+<body>
+    <!-- 页面容器：包裹所有元素，方便布局 -->
+    <div class="container">
+        <h1>摩斯电码生成器（编码/解码）</h1>
+
+        <!-- 输入区域：用于输入要转换的内容 -->
+        <div class="input-area">
+            <label for="input-content">输入内容：</label>
+            <textarea id="input-content" placeholder="编码：输入英文/数字（小写/大写均可）；解码：输入摩斯码（字符用空格分隔，单词用 / 分隔）"></textarea>
+        </div>
+
+        <!-- 功能按钮组：编码、解码、清空、复制 -->
+        <div class="btn-group">
+            <button class="encode-btn" onclick="morseEncode()">编码（文字→摩斯码）</button>
+            <button class="decode-btn" onclick="morseDecode()">解码（摩斯码→文字）</button>
+            <button class="clear-btn" onclick="clearContent()">清空内容</button>
+            <button class="copy-btn" onclick="copyOutput()">复制结果</button>
+        </div>
+
+        <!-- 输出区域：用于显示转换结果，只读不可编辑 -->
+        <div class="output-area">
+            <label for="output-content">输出结果：</label>
+            <textarea id="output-content" readonly placeholder="结果将显示在这里..."></textarea>
+        </div>
+
+        <!-- 提示文字：指导用户正确使用 -->
+        <p class="tip">提示：1. 编码仅支持英文字母（a-z/A-Z）和数字（0-9）；2. 解码时，摩斯码字符用单个空格分隔，单词用 / 分隔（例：.... . .-.. .-.. --- / .-- --- .-. .-.. -..）</p>
+    </div>
+
+    <!-- 后续JavaScript代码将写在这里 -->
+    <script>
+        // 1. 定义标准摩斯电码映射表（字母、数字 → 摩斯码，用于编码）
+const morseCodeMap = {
+    'a': '.-',    'b': '-...',  'c': '-.-.',  'd': '-..',   'e': '.',
+    'f': '..-.',  'g': '--.',   'h': '....',  'i': '..',    'j': '.---',
+    'k': '-.-',   'l': '.-..',  'm': '--',    'n': '-.',    'o': '---',
+    'p': '.--.',  'q': '--.-',  'r': '.-.',   's': '...',   't': '-',
+    'u': '..-',   'v': '...-',  'w': '.--',   'x': '-..-',  'y': '-.--',
+    'z': '--..',  '0': '-----', '1': '.----', '2': '..---', '3': '...--',
+    '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..',
+    '9': '----.'
+};
+
+// 2. 构建反向映射表（摩斯码 → 字母/数字，用于解码）
+const reverseMorseMap = {};
+// 遍历正向映射表，将键（字母/数字）和值（摩斯码）互换，生成反向映射
+for (const [char, morse] of Object.entries(morseCodeMap)) {
+    reverseMorseMap[morse] = char;
+}
+
+// 3. 编码功能：将文字（英文/数字）转换为摩斯码
+function morseEncode() {
+    // 获取输入框和输出框元素
+    const inputElement = document.getElementById('input-content');
+    const outputElement = document.getElementById('output-content');
+    // 获取输入内容，去除首尾空格，并转换为小写（兼容大写输入）
+    const inputContent = inputElement.value.trim().toLowerCase();
+    // 初始化结果变量
+    let encodeResult = '';
+
+    // 判断输入是否为空
+    if (!inputContent) {
+        outputElement.value = '请输入需要编码的内容！';
+        return; // 终止函数执行
+    }
+
+    // 遍历输入的每个字符，进行编码转换
+    for (let i = 0; i < inputContent.length; i++) {
+        const currentChar = inputContent[i];
+        // 如果当前字符在摩斯码映射表中（字母/数字）
+        if (morseCodeMap[currentChar]) {
+            // 添加对应的摩斯码，并在后面加一个空格（分隔字符）
+            encodeResult += morseCodeMap[currentChar] + ' ';
+        }
+        // 如果当前字符是空格（输入中的单词分隔符）
+        else if (currentChar === ' ') {
+            // 避免连续空格导致生成多个 /，仅在前一个字符不是 / 时添加
+            if (encodeResult.slice(-2) !== '/ ') {
+                encodeResult += '/ '; // 用 / 作为摩斯码的单词分隔符
+            }
+        }
+        // 如果是不支持的字符（中文、特殊符号等）
+        else {
+            outputElement.value = `不支持字符：${currentChar}，仅支持英文字母和数字！`;
+            return; // 终止函数执行
+        }
+    }
+
+    // 去除结果末尾多余的空格，并显示到输出框
+    outputElement.value = encodeResult.trim();
+}
+
+// 4. 解码功能：将摩斯码转换为文字（英文/数字）
+function morseDecode() {
+    // 获取输入框和输出框元素
+    const inputElement = document.getElementById('input-content');
+    const outputElement = document.getElementById('output-content');
+    // 获取输入内容，去除首尾空格
+    const inputContent = inputElement.value.trim();
+    // 初始化结果变量
+    let decodeResult = '';
+
+    // 判断输入是否为空
+    if (!inputContent) {
+        outputElement.value = '请输入需要解码的摩斯码！';
+        return; // 终止函数执行
+    }
+
+    // 拆分单词：按 / 分割（摩斯码中单词用 / 分隔）
+    const morseWords = inputContent.split('/');
+    // 遍历每个摩斯码单词
+    for (let word of morseWords) {
+        // 去除每个单词首尾的空格
+        word = word.trim();
+        // 拆分字符：按空格分割（摩斯码中字符用空格分隔）
+        const morseChars = word.split(' ');
+        // 遍历每个摩斯码字符
+        for (const morse of morseChars) {
+            // 跳过空字符（避免连续空格导致的空值）
+            if (morse === '') continue;
+            // 如果当前摩斯码在反向映射表中
+            if (reverseMorseMap[morse]) {
+                // 添加对应的字母/数字到结果中
+                decodeResult += reverseMorseMap[morse];
+            }
+            // 如果是无效的摩斯码
+            else {
+                outputElement.value = `无效的摩斯码：${morse}，请检查格式！`;
+                return; // 终止函数执行
+            }
+        }
+        // 每个单词解码完成后，添加一个空格（分隔单词）
+        decodeResult += ' ';
+    }
+
+    // 去除结果末尾多余的空格，并转换为大写（更易读），显示到输出框
+    outputElement.value = decodeResult.trim().toUpperCase();
+}
+
+// 5. 清空功能：一键清空输入框和输出框的内容
+function clearContent() {
+    document.getElementById('input-content').value = '';
+    document.getElementById('output-content').value = '';
+}
+
+// 6. 复制功能：一键复制输出框的结果到剪贴板
+function copyOutput() {
+    const outputElement = document.getElementById('output-content');
+    // 判断输出框是否有内容
+    if (!outputElement.value) {
+        alert('暂无结果可复制！');
+        return; // 终止函数执行
+    }
+    // 选中输出框的所有内容
+    outputElement.select();
+    // 执行复制操作
+    document.execCommand('copy');
+    // 弹出提示，告知用户复制成功
+    alert('结果已复制到剪贴板！');
+}
+
+    </script>
+</body>
+</html>
