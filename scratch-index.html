@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratch 游戏专区</title>
+    <style>
+        /* 和视频页面一致的样式，保持网站风格统一 */
+        body {
+            font-family: 微软雅黑, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            color: #212529;
+        }
+        /* 按钮统一样式，仅通过背景色区分功能 */
+        .func-btn {
+            display: inline-block;
+            margin: 15px 10px; /* 按钮之间间距 + 上下间距 */
+            padding: 12px 30px; /* 按钮更大更美观 */
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        /* 在线游玩按钮：绿色 */
+        .play-btn {
+            background-color: #28a745;
+        }
+        .play-btn:hover {
+            background-color: #218838; /* 鼠标悬浮加深颜色，提升体验 */
+        }
+        /* 下载游戏按钮：黄色（区分游玩按钮） */
+        .download-btn {
+            background-color: #ffc107;
+            color: #212529; /* 黄色背景配深色文字，更清晰 */
+        }
+        .download-btn:hover {
+            background-color: #e0a800;
+        }
+        /* 返回首页按钮：和视频页面样式一致 */
+        .back-link {
+            color: #0d6efd;
+            text-decoration: none;
+            font-size: 16px;
+            margin-top: 30px;
+            display: inline-block;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scratch 游戏专区</h1>
+    <p>选择你需要的功能：</p>
+
+    <!-- 1. 跳转至 Scratch 游戏 -->
+    <a href="scratch-game.html" class="func-btn play-btn">
+        在线游玩 Scratch 游戏
+    </a>
+
+    <!-- 场景B：有 assets 文件夹（需下载 ZIP 压缩包，注释掉场景A，启用此场景） -->
+    <!-- <a href="scratch-game.zip" download="我的Scratch游戏.zip" class="func-btn download-btn">
+        下载 Scratch 游戏完整包（含所有资源）
+    </a> -->
+
+    <!-- 返回首页按钮：和视频页面一致，方便返回 -->
+    <a href="index.html" class="back-link">← 返回网站首页</a>
+</body>
+</html>
