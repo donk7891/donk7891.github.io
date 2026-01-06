@@ -76,23 +76,27 @@
         .morse-btn {
             background-color: #6f42c1; /* 摩斯电码按钮：紫色 */
         }
+
+        .ai-btn {
+            background-color: #dc3545; /* AI助手按钮：红色，与其他按钮配色区分 */
+        }
     </style>
 </head>
 <body>
     <h1 class="site-title">这是我的个人网站</h1>
     <p class="site-subtitle">我们在这个网站上做了非常多好玩的内容</p>
 
-      <!-- 保留原有：希特勒视频模块（修正链接指向原video-page.html） -->
+    <!-- 保留原有：希特勒视频模块 -->
     <div class="func-module">
         <h2>希特勒视频</h2>
-        <!-- 关键：href改为原希特勒视频页面文件名video-page.html -->
         <a href="video-page.html" class="func-btn hitler-video-btn">点击播放希特勒视频</a>
     </div>
 
-    <!-- 新增：恭喜发财视频模块（链接指向新建的gongxi-video.html） -->
+    <!-- 新增：恭喜发财视频模块 -->
     <div class="func-module">
-    <h2>恭喜发财视频</h2>
-    <a href="gongxi-video.html" class="func-btn gongxi-video-btn">点击播放恭喜发财视频</a></div>
+        <h2>恭喜发财视频</h2>
+        <a href="gongxi-video.html" class="func-btn gongxi-video-btn">点击播放恭喜发财视频</a>
+    </div>
 
     <!-- 保留原有：Scratch模块 -->
     <div class="func-module">
@@ -104,6 +108,12 @@
     <div class="func-module">
         <h2>摩斯电码生成器（编码+解码）</h2>
         <a href="morse-code-generator.html" class="func-btn morse-btn">打开摩斯电码生成器</a>
+    </div>
+
+    <!-- 新增：AI助手模块（匹配现有布局和样式规范） -->
+    <div class="func-module">
+        <h2>讯飞星火AI助手</h2>
+        <a href="ai-chat.html" class="func-btn ai-btn">打开AI智能聊天助手</a>
     </div>
 </body>
 </html>
