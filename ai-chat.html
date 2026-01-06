@@ -5,27 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>讯飞星火AI聊天</title>
     <style>
-        /* 基础样式，保证界面简洁易用 */
+        /* 统一使用和主页一致的字体、背景色，保持风格统一 */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: "Microsoft YaHei", sans-serif;
+            font-family: "微软雅黑", sans-serif; /* 替换为主页的字体 */
         }
         body {
-            max-width: 800px;
+            max-width: 600px; /* 匹配主页模块宽度，视觉更统一 */
             margin: 20px auto;
             padding: 0 20px;
-            background-color: #f5f7fa;
+            background-color: #f8f9fa; /* 替换为主页的背景色 */
+        }
+        /* 返回主页按钮样式 */
+        .back-home {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .back-home a {
+            color: #0d6efd; /* 匹配主页按钮的蓝色 */
+            text-decoration: none;
+            font-size: 16px;
         }
         #chat-container {
-            height: 600px;
-            border: 1px solid #e0e0e0;
+            height: 500px; /* 适当缩短高度，适配移动端 */
+            border: 1px solid #e9ecef; /* 匹配主页模块边框 */
             border-radius: 8px;
             padding: 20px;
             background-color: white;
             overflow-y: auto;
             margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 增加和主页一致的阴影 */
         }
         .message {
             margin-bottom: 15px;
@@ -35,12 +46,12 @@
             line-height: 1.5;
         }
         .user-message {
-            background-color: #007bff;
+            background-color: #0d6efd; /* 匹配主页希特勒视频按钮的蓝色 */
             color: white;
             margin-left: auto;
         }
         .ai-message {
-            background-color: #e9ecef;
+            background-color: #e9ecef; /* 匹配主页模块背景色 */
             color: #333;
             margin-right: auto;
         }
@@ -51,21 +62,21 @@
         #message-input {
             flex: 1;
             padding: 12px 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
+            border: 1px solid #e9ecef; /* 匹配主页边框 */
+            border-radius: 6px; /* 匹配主页按钮圆角 */
             font-size: 16px;
         }
         #send-btn {
-            padding: 12px 25px;
-            background-color: #007bff;
+            padding: 12px 24px;
+            background-color: #dc3545; /* 匹配主页AI按钮的红色 */
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px; /* 匹配主页按钮圆角 */
             cursor: pointer;
             font-size: 16px;
         }
         #send-btn:hover {
-            background-color: #0056b3;
+            background-color: #bb2d3b; /* 红色hover效果 */
         }
         .loading {
             color: #666;
@@ -81,6 +92,11 @@
     </style>
 </head>
 <body>
+    <!-- 新增：返回主页按钮 -->
+    <div class="back-home">
+        <a href="index.html">← 返回我的个人网站</a>
+    </div>
+
     <div id="chat-container"></div>
     <div class="input-area">
         <input type="text" id="message-input" placeholder="请输入你想提问的内容...">
@@ -88,10 +104,10 @@
     </div>
 
     <script>
-        // ===================== 核心配置（替换为你的讯飞星火密钥）=====================
-        const APPID = "你的APPID";       // c447f027
-        const APISecret = "你的APISecret"; // OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi
-        const APIKey = "你的APIKey";     // 9430d8fde0e371b4b1315e44be61bfeb
+        // ===================== 核心配置（已替换为你的密钥）=====================
+        const APPID = "c447f027";       // 你的APPID
+        const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi"; // 你的APISecret
+        const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";     // 你的APIKey
         // 讯飞星火API版本（v3.5为通用版，可根据需要修改为v1.1/v2.1）
         const API_VERSION = "v3.5";
 
