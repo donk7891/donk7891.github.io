@@ -4,36 +4,193 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>讯飞星火AI聊天</title>
-    <style>/* 样式和之前一致，省略 */</style>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", sans-serif;
+        }
+        body {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background-color: #f8f9fa;
+        }
+        .back-home {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .back-home a {
+            color: #0d6efd;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        #chat-container {
+            height: 500px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: white;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+        .user-message {
+            background-color: #0d6efd;
+            color: white;
+            margin-left: auto;
+        }
+        .ai-message {
+            background-color: #e9ecef;
+            color: #333;
+            margin-right: auto;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        #send-btn {
+            padding: 12px 24px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #send-btn:hover {
+            background-color: #bb2d3b;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .error {
+            color: #dc3545;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .system-tip {
+            color: #6c757d;
+            font-size: 14px;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
-    <!-- 页面结构和之前一致，省略 -->
-    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+    <div class="back-home">
+        <a href="index.html">← 返回我的个人网站</a>
+    </div>
+
+    <div id="chat-container"></div>
+    <div class="input-area">
+        <input type="text" id="message-input" placeholder="请输入你想提问的内容...">
+        <button id="send-btn">发送</button>
+    </div>
+
+    <!-- 引入加密库（用于生成签名，国内CDN可访问） -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
     <script>
-        // 密钥配置
+        // ========== 核心配置（确认是你自己的密钥！） ==========
         const APPID = "c447f027";
         const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";
         const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi";
-        
-        // 生成Authorization签名
-        function getAuthorization(date) {
+        const API_URL = "https://spark-api.xf-yun.com/v3.5/chat";
+
+        // ========== 页面元素 ==========
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // ========== 工具函数 ==========
+        // 添加消息到聊天框
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.textContent = content;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // 添加系统提示
+        function addSystemTip(content) {
+            const tipDiv = document.createElement('div');
+            tipDiv.className = 'system-tip';
+            tipDiv.textContent = content;
+            chatContainer.appendChild(tipDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // 生成讯飞API需要的Authorization签名
+        function generateAuthorizationHeader(date) {
+            // 1. 构造签名原始字符串
             const signatureOrigin = `host: spark-api.xf-yun.com\ndate: ${date}\nPOST /v3.5/chat HTTP/1.1`;
-            const signatureSha = CryptoJS.HmacSHA256(signatureOrigin, APISecret);
-            const signature = CryptoJS.enc.Base64.stringify(signatureSha);
+            // 2. HMAC-SHA256加密 + Base64编码
+            const signature = CryptoJS.enc.Base64.stringify(
+                CryptoJS.HmacSHA256(signatureOrigin, APISecret)
+            );
+            // 3. 构造Authorization原始字符串
             const authorizationOrigin = `api_key="${APIKey}", algorithm="hmac-sha256", headers="host date request-line", signature="${signature}"`;
+            // 4. Base64编码最终Authorization
             return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(authorizationOrigin));
         }
 
-        // 发送消息
+        // ========== 核心功能：发送消息到讯飞API ==========
         async function sendMessageToXinghuo(message) {
+            // 显示用户消息
             addMessage(message, true);
-            // ... 加载提示逻辑和之前一致 ...
-
-            const date = new Date().toUTCString();
-            const authorization = getAuthorization(date);
             
+            // 显示加载提示
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.textContent = 'AI正在思考中...';
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
             try {
-                const response = await fetch("https://spark-api.xf-yun.com/v3.5/chat", {
+                // 1. 生成请求头需要的参数
+                const date = new Date().toUTCString();
+                const authorization = generateAuthorizationHeader(date);
+
+                // 2. 构造请求体（讯飞API标准格式）
+                const requestBody = {
+                    header: {
+                        app_id: APPID
+                    },
+                    parameter: {
+                        chat: {
+                            domain: "generalv3.5", // 星火3.5版本
+                            temperature: 0.5,     // 随机性（0-1）
+                            max_tokens: 2048      // 最大回复长度
+                        }
+                    },
+                    payload: {
+                        message: {
+                            text: [{ role: "user", content: message }]
+                        }
+                    }
+                };
+
+                // 3. 发送POST请求到讯飞API
+                const response = await fetch(API_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -41,31 +198,55 @@
                         "Date": date,
                         "Authorization": authorization
                     },
-                    body: JSON.stringify({
-                        "header": { "app_id": APPID },
-                        "parameter": {
-                            "chat": { "domain": "generalv3.5", "temperature": 0.5, "max_tokens": 2048 }
-                        },
-                        "payload": {
-                            "message": { "text": [{ "role": "user", "content": message }] }
-                        }
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
+                // 4. 解析响应
                 const result = await response.json();
-                if (result.header.code === 0) {
+                
+                // 移除加载提示
+                chatContainer.removeChild(loadingDiv);
+
+                // 5. 处理响应结果
+                if (result.header && result.header.code === 0) {
+                    // 成功：显示AI回复
                     const aiReply = result.payload.choices.text[0].content;
                     addMessage(aiReply, false);
                 } else {
-                    throw new Error(`讯飞API错误：${result.header.message}`);
+                    // 失败：显示错误信息
+                    throw new Error(`讯飞API错误：${result.header?.message || '未知错误'}`);
                 }
             } catch (error) {
-                // ... 错误处理逻辑和之前一致 ...
+                // 捕获所有错误并显示
+                chatContainer.removeChild(loadingDiv);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.textContent = `错误：${error.message || '请求失败，请检查网络/密钥'}`;
+                chatContainer.appendChild(errorDiv);
+                console.error("调用失败详情：", error);
             }
         }
 
-        // 绑定事件+欢迎语（和之前一致）
-        // ... 省略重复代码 ...
+        // ========== 事件绑定 ==========
+        // 发送按钮点击事件
+        sendBtn.addEventListener('click', () => {
+            const msg = messageInput.value.trim();
+            if (msg) {
+                messageInput.value = "";
+                sendMessageToXinghuo(msg);
+            }
+        });
+
+        // 回车键发送
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendBtn.click();
+        });
+
+        // ========== 页面初始化 ==========
+        window.onload = function() {
+            addSystemTip("AI助手已加载完成 ✨");
+            addMessage("你好！我是基于讯飞星火的AI助手，有什么可以帮你的？", false);
+        };
     </script>
 </body>
 </html>
