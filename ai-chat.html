@@ -106,13 +106,13 @@
         <button id="send-btn">发送</button>
     </div>
 
-    <!-- 引入加密库（用于生成签名，国内CDN可访问） -->
     <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
     <script>
-        // ========== 核心配置（确认是你自己的密钥！） ==========
+        // ========== 核心配置（已替换为Worker域名！） ==========
         const APPID = "c447f027";
         const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";
         const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi";
+        // 重点：这里是你的Cloudflare Worker域名！
         const API_URL = "https://dry-flower-194a.2870794167.workers.dev";
 
         // ========== 页面元素 ==========
@@ -121,7 +121,6 @@
         const sendBtn = document.getElementById('send-btn');
 
         // ========== 工具函数 ==========
-        // 添加消息到聊天框
         function addMessage(content, isUser = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
@@ -130,7 +129,6 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // 添加系统提示
         function addSystemTip(content) {
             const tipDiv = document.createElement('div');
             tipDiv.className = 'system-tip';
@@ -139,26 +137,18 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // 生成讯飞API需要的Authorization签名
         function generateAuthorizationHeader(date) {
-            // 1. 构造签名原始字符串
             const signatureOrigin = `host: spark-api.xf-yun.com\ndate: ${date}\nPOST /v3.5/chat HTTP/1.1`;
-            // 2. HMAC-SHA256加密 + Base64编码
             const signature = CryptoJS.enc.Base64.stringify(
                 CryptoJS.HmacSHA256(signatureOrigin, APISecret)
             );
-            // 3. 构造Authorization原始字符串
             const authorizationOrigin = `api_key="${APIKey}", algorithm="hmac-sha256", headers="host date request-line", signature="${signature}"`;
-            // 4. Base64编码最终Authorization
             return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(authorizationOrigin));
         }
 
-        // ========== 核心功能：发送消息到讯飞API ==========
+        // ========== 核心功能 ==========
         async function sendMessageToXinghuo(message) {
-            // 显示用户消息
             addMessage(message, true);
-            
-            // 显示加载提示
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'loading';
             loadingDiv.textContent = 'AI正在思考中...';
@@ -166,30 +156,20 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
             try {
-                // 1. 生成请求头需要的参数
                 const date = new Date().toUTCString();
                 const authorization = generateAuthorizationHeader(date);
 
-                // 2. 构造请求体（讯飞API标准格式）
                 const requestBody = {
-                    header: {
-                        app_id: APPID
-                    },
+                    header: { app_id: APPID },
                     parameter: {
-                        chat: {
-                            domain: "generalv3.5", // 星火3.5版本
-                            temperature: 0.5,     // 随机性（0-1）
-                            max_tokens: 2048      // 最大回复长度
-                        }
+                        chat: { domain: "generalv3.5", temperature: 0.5, max_tokens: 2048 }
                     },
                     payload: {
-                        message: {
-                            text: [{ role: "user", content: message }]
-                        }
+                        message: { text: [{ role: "user", content: message }] }
                     }
                 };
 
-                // 3. 发送POST请求到讯飞API
+                // 重点：请求的是Worker域名，不是讯飞API！
                 const response = await fetch(API_URL, {
                     method: "POST",
                     headers: {
@@ -201,34 +181,26 @@
                     body: JSON.stringify(requestBody)
                 });
 
-                // 4. 解析响应
                 const result = await response.json();
-                
-                // 移除加载提示
                 chatContainer.removeChild(loadingDiv);
 
-                // 5. 处理响应结果
                 if (result.header && result.header.code === 0) {
-                    // 成功：显示AI回复
                     const aiReply = result.payload.choices.text[0].content;
                     addMessage(aiReply, false);
                 } else {
-                    // 失败：显示错误信息
                     throw new Error(`讯飞API错误：${result.header?.message || '未知错误'}`);
                 }
             } catch (error) {
-                // 捕获所有错误并显示
                 chatContainer.removeChild(loadingDiv);
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
-                errorDiv.textContent = `错误：${error.message || '请求失败，请检查网络/密钥'}`;
+                errorDiv.textContent = `错误：${error.message || '请求失败，请检查网络/Worker配置'}`;
                 chatContainer.appendChild(errorDiv);
                 console.error("调用失败详情：", error);
             }
         }
 
         // ========== 事件绑定 ==========
-        // 发送按钮点击事件
         sendBtn.addEventListener('click', () => {
             const msg = messageInput.value.trim();
             if (msg) {
@@ -237,12 +209,11 @@
             }
         });
 
-        // 回车键发送
         messageInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendBtn.click();
         });
 
-        // ========== 页面初始化 ==========
+        // ========== 初始化 ==========
         window.onload = function() {
             addSystemTip("AI助手已加载完成 ✨");
             addMessage("你好！我是基于讯飞星火的AI助手，有什么可以帮你的？", false);
