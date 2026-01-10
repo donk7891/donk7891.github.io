@@ -108,12 +108,15 @@
 
     <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
     <script>
-        // ========== 核心配置（替换为你的腾讯云函数地址！） ==========
+        // ========== 核心配置（按需二选一，删除另一个！） ==========
+        // 选项1：使用腾讯云函数（推荐，国内访问稳定）
         const APPID = "c447f027";
         const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";
         const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi";
-        // 替换成你自己的腾讯云函数地址
         const API_URL = "https://cloud1-5ggx5jgz96428223.service.tcloudbase.com/2016-08-15/proxy/xinghuo-proxy/api/chat";
+        
+        // 选项2：使用Cloudflare Worker（若云函数不可用，取消下面注释并注释上面的API_URL）
+        // const API_URL = "https://dry-flower-194a.2870794167.workers.dev";
 
         // ========== 页面元素 ==========
         const chatContainer = document.getElementById('chat-container');
@@ -146,8 +149,11 @@
             return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(authorizationOrigin));
         }
 
-        // ========== 核心功能 ==========
+        // ========== 核心功能（优化版，增加超时和错误兼容） ==========
         async function sendMessageToXinghuo(message) {
+            // 空消息不发送
+            if (!message.trim()) return;
+            
             addMessage(message, true);
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'loading';
@@ -169,7 +175,10 @@
                     }
                 };
 
-                // 请求腾讯云函数代理地址
+                // 增加请求超时（15秒）
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
                 const response = await fetch(API_URL, {
                     method: "POST",
                     headers: {
@@ -178,29 +187,49 @@
                         "Date": date,
                         "Authorization": authorization
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal // 绑定超时控制器
                 });
+
+                clearTimeout(timeoutId); // 清除超时定时器
+
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`请求失败，状态码：${response.status}`);
+                }
 
                 const result = await response.json();
                 chatContainer.removeChild(loadingDiv);
 
+                // 处理讯飞API响应
                 if (result.header && result.header.code === 0) {
                     const aiReply = result.payload.choices.text[0].content;
                     addMessage(aiReply, false);
                 } else {
-                    throw new Error(`讯飞API错误：${result.header?.message || '未知错误'}`);
+                    throw new Error(`讯飞API错误：${result.header?.message || '未知错误（错误码：' + result.header?.code + '）'}`);
                 }
             } catch (error) {
                 chatContainer.removeChild(loadingDiv);
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
-                errorDiv.textContent = `错误：${error.message || '请求失败，请检查网络/云函数配置'}`;
+                
+                // 友好的错误提示分类
+                let errorMsg = "请求失败：";
+                if (error.name === 'AbortError') {
+                    errorMsg += "请求超时（15秒），请检查网络或稍后再试";
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMsg += "无法连接到代理服务器，请检查代理地址是否正确";
+                } else {
+                    errorMsg += error.message;
+                }
+                
+                errorDiv.textContent = errorMsg;
                 chatContainer.appendChild(errorDiv);
                 console.error("调用失败详情：", error);
             }
         }
 
-        // ========== 事件绑定 ==========
+        // ========== 事件绑定（优化版） ==========
         sendBtn.addEventListener('click', () => {
             const msg = messageInput.value.trim();
             if (msg) {
@@ -209,231 +238,12 @@
             }
         });
 
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendBtn.click();
-        });
-
-        // ========== 初始化 ==========
-        window.onload = function() {
-            addSystemTip("AI助手已加载完成 ✨");
-            addMessage("你好！我是基于讯飞星火的AI助手，有什么可以帮你的？", false);
-        };
-    </script>
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>讯飞星火AI聊天</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: "微软雅黑", sans-serif;
-        }
-        body {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 0 20px;
-            background-color: #f8f9fa;
-        }
-        .back-home {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-        .back-home a {
-            color: #0d6efd;
-            text-decoration: none;
-            font-size: 16px;
-        }
-        #chat-container {
-            height: 500px;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 20px;
-            background-color: white;
-            overflow-y: auto;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .message {
-            margin-bottom: 15px;
-            padding: 10px 15px;
-            border-radius: 8px;
-            max-width: 80%;
-            line-height: 1.5;
-        }
-        .user-message {
-            background-color: #0d6efd;
-            color: white;
-            margin-left: auto;
-        }
-        .ai-message {
-            background-color: #e9ecef;
-            color: #333;
-            margin-right: auto;
-        }
-        .input-area {
-            display: flex;
-            gap: 10px;
-        }
-        #message-input {
-            flex: 1;
-            padding: 12px 15px;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-        #send-btn {
-            padding: 12px 24px;
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        #send-btn:hover {
-            background-color: #bb2d3b;
-        }
-        .loading {
-            color: #666;
-            font-style: italic;
-            text-align: center;
-            margin: 10px 0;
-        }
-        .error {
-            color: #dc3545;
-            text-align: center;
-            margin: 10px 0;
-        }
-        .system-tip {
-            color: #6c757d;
-            font-size: 14px;
-            text-align: center;
-            margin: 10px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="back-home">
-        <a href="index.html">← 返回我的个人网站</a>
-    </div>
-
-    <div id="chat-container"></div>
-    <div class="input-area">
-        <input type="text" id="message-input" placeholder="请输入你想提问的内容...">
-        <button id="send-btn">发送</button>
-    </div>
-
-    <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <script>
-        // ========== 核心配置（已替换为Worker域名！） ==========
-        const APPID = "c447f027";
-        const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";
-        const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi";
-        // 重点：这里是你的Cloudflare Worker域名！
-        const API_URL = "https://dry-flower-194a.2870794167.workers.dev";
-
-        // ========== 页面元素 ==========
-        const chatContainer = document.getElementById('chat-container');
-        const messageInput = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
-
-        // ========== 工具函数 ==========
-        function addMessage(content, isUser = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
-            messageDiv.textContent = content;
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function addSystemTip(content) {
-            const tipDiv = document.createElement('div');
-            tipDiv.className = 'system-tip';
-            tipDiv.textContent = content;
-            chatContainer.appendChild(tipDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function generateAuthorizationHeader(date) {
-            const signatureOrigin = `host: spark-api.xf-yun.com\ndate: ${date}\nPOST /v3.5/chat HTTP/1.1`;
-            const signature = CryptoJS.enc.Base64.stringify(
-                CryptoJS.HmacSHA256(signatureOrigin, APISecret)
-            );
-            const authorizationOrigin = `api_key="${APIKey}", algorithm="hmac-sha256", headers="host date request-line", signature="${signature}"`;
-            return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(authorizationOrigin));
-        }
-
-        // ========== 核心功能 ==========
-        async function sendMessageToXinghuo(message) {
-            addMessage(message, true);
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'loading';
-            loadingDiv.textContent = 'AI正在思考中...';
-            chatContainer.appendChild(loadingDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-
-            try {
-                const date = new Date().toUTCString();
-                const authorization = generateAuthorizationHeader(date);
-
-                const requestBody = {
-                    header: { app_id: APPID },
-                    parameter: {
-                        chat: { domain: "generalv3.5", temperature: 0.5, max_tokens: 2048 }
-                    },
-                    payload: {
-                        message: { text: [{ role: "user", content: message }] }
-                    }
-                };
-
-                // 重点：请求的是Worker域名，不是讯飞API！
-                const response = await fetch(API_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Host": "spark-api.xf-yun.com",
-                        "Date": date,
-                        "Authorization": authorization
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-
-                const result = await response.json();
-                chatContainer.removeChild(loadingDiv);
-
-                if (result.header && result.header.code === 0) {
-                    const aiReply = result.payload.choices.text[0].content;
-                    addMessage(aiReply, false);
-                } else {
-                    throw new Error(`讯飞API错误：${result.header?.message || '未知错误'}`);
-                }
-            } catch (error) {
-                chatContainer.removeChild(loadingDiv);
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error';
-                errorDiv.textContent = `错误：${error.message || '请求失败，请检查网络/Worker配置'}`;
-                chatContainer.appendChild(errorDiv);
-                console.error("调用失败详情：", error);
+        // 回车发送（兼容Enter+Shift换行）
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // 阻止默认换行
+                sendBtn.click();
             }
-        }
-
-        // ========== 事件绑定 ==========
-        sendBtn.addEventListener('click', () => {
-            const msg = messageInput.value.trim();
-            if (msg) {
-                messageInput.value = "";
-                sendMessageToXinghuo(msg);
-            }
-        });
-
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendBtn.click();
         });
 
         // ========== 初始化 ==========
