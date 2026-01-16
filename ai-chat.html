@@ -113,7 +113,7 @@
         const APPID = "c447f027";
         const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";
         const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi";
-        const API_URL = "https://cloud1-5ggx5jgz96428223.service.tcloudbase.com/2016-08-15/proxy/xinghuo-proxy/api/chat";
+        const API_URL = "https://cloud1-5ggx5jgz96428223.service.tcloudbase.com/xinghuo-proxy";
         
         // 选项2：使用Cloudflare Worker（若云函数不可用，取消下面注释并注释上面的API_URL）
         // const API_URL = "https://dry-flower-194a.2870794167.workers.dev";
@@ -151,15 +151,29 @@
 
         // ========== 核心功能（优化版，增加超时和错误兼容） ==========
         async function sendMessageToXinghuo(message) {
-            // 空消息不发送
-            if (!message.trim()) return;
-            
-            addMessage(message, true);
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'loading';
-            loadingDiv.textContent = 'AI正在思考中...';
-            chatContainer.appendChild(loadingDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+          try {
+            // 正确写法：直接用新地址，无额外拼接
+            const response = await fetch(API_URL, { 
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                // 讯飞API需要的参数（比如messages、appid等）
+                messages: [{ role: 'user', content: message }]
+              })
+            });
+        
+            if (!response.ok) {
+              throw new Error(`HTTP错误：${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+          } catch (error) {
+            console.error('调用失败详情：', error);
+            throw error;
+          }
+        }
 
             try {
                 const date = new Date().toUTCString();
