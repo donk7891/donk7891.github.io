@@ -108,30 +108,29 @@
 
     <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
     <script>
-        // ========== 核心配置（按需二选一，删除另一个！） ==========
-        // 选项1：使用腾讯云函数（推荐，国内访问稳定）
+        // ========== 核心配置（已替换为你的实际参数） ==========
         const APPID = "c447f027";
         const APIKey = "9430d8fde0e371b4b1315e44be61bfeb";
         const APISecret = "OGM2NGU0N2FkYWZkMjYyMDFhNGJjOThi";
         const API_URL = "https://cloud1-5ggx5jgz96428223.service.tcloudbase.com/xinghuo-proxy";
-        
-        // 选项2：使用Cloudflare Worker（若云函数不可用，取消下面注释并注释上面的API_URL）
-        // const API_URL = "https://dry-flower-194a.2870794167.workers.dev";
 
-        // ========== 页面元素 ==========
-        const chatContainer = document.getElementById('chat-container');
-        const messageInput = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
+        // ========== 提前获取DOM元素（避免重复查询） ==========
+        const chatContainer = document.getElementById("chat-container");
+        const sendBtn = document.getElementById("send-btn");
+        const messageInput = document.getElementById("message-input");
 
         // ========== 工具函数 ==========
+        // 展示消息到聊天框
         function addMessage(content, isUser = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
             messageDiv.textContent = content;
             chatContainer.appendChild(messageDiv);
+            // 自动滚动到底部
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
+        // 展示系统提示
         function addSystemTip(content) {
             const tipDiv = document.createElement('div');
             tipDiv.className = 'system-tip';
@@ -140,6 +139,7 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
+        // 生成讯飞认证头
         function generateAuthorizationHeader(date) {
             const signatureOrigin = `host: spark-api.xf-yun.com\ndate: ${date}\nPOST /v3.5/chat HTTP/1.1`;
             const signature = CryptoJS.enc.Base64.stringify(
@@ -149,36 +149,31 @@
             return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(authorizationOrigin));
         }
 
-        // ========== 核心功能（优化版，增加超时和错误兼容） ==========
+        // ========== 核心发送函数（整合逻辑，仅保留一个） ==========
         async function sendMessageToXinghuo(message) {
-          try {
-            // 正确写法：直接用新地址，无额外拼接
-            const response = await fetch(API_URL, { 
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                // 讯飞API需要的参数（比如messages、appid等）
-                messages: [{ role: 'user', content: message }]
-              })
-            });
-        
-            if (!response.ok) {
-              throw new Error(`HTTP错误：${response.status}`);
+            // 1. 校验输入
+            if (!message.trim()) {
+                alert("请输入要发送的内容！");
+                return;
             }
-            const data = await response.json();
-            return data;
-          } catch (error) {
-            console.error('调用失败详情：', error);
-            throw error;
-          }
-        }
+
+            // 2. 展示用户消息
+            addMessage(message, true);
+            messageInput.value = "";
+
+            // 3. 展示加载状态
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.textContent = "AI正在思考中...";
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
 
             try {
+                // 4. 生成讯飞认证参数
                 const date = new Date().toUTCString();
                 const authorization = generateAuthorizationHeader(date);
 
+                // 5. 构造讯飞API请求体
                 const requestBody = {
                     header: { app_id: APPID },
                     parameter: {
@@ -189,10 +184,11 @@
                     }
                 };
 
-                // 增加请求超时（15秒）
+                // 6. 设置15秒请求超时
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
 
+                // 7. 发送请求到腾讯云函数
                 const response = await fetch(API_URL, {
                     method: "POST",
                     headers: {
@@ -202,37 +198,39 @@
                         "Authorization": authorization
                     },
                     body: JSON.stringify(requestBody),
-                    signal: controller.signal // 绑定超时控制器
+                    signal: controller.signal
                 });
 
                 clearTimeout(timeoutId); // 清除超时定时器
 
-                // 检查响应状态
+                // 8. 校验响应状态
                 if (!response.ok) {
-                    throw new Error(`请求失败，状态码：${response.status}`);
+                    throw new Error(`请求失败（状态码：${response.status}）`);
                 }
 
+                // 9. 解析响应
                 const result = await response.json();
-                chatContainer.removeChild(loadingDiv);
+                chatContainer.removeChild(loadingDiv); // 移除加载状态
 
-                // 处理讯飞API响应
+                // 10. 处理讯飞返回结果
                 if (result.header && result.header.code === 0) {
                     const aiReply = result.payload.choices.text[0].content;
-                    addMessage(aiReply, false);
+                    addMessage(aiReply, false); // 展示AI回复
                 } else {
                     throw new Error(`讯飞API错误：${result.header?.message || '未知错误（错误码：' + result.header?.code + '）'}`);
                 }
+
             } catch (error) {
+                // 11. 错误处理
                 chatContainer.removeChild(loadingDiv);
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
                 
-                // 友好的错误提示分类
                 let errorMsg = "请求失败：";
                 if (error.name === 'AbortError') {
                     errorMsg += "请求超时（15秒），请检查网络或稍后再试";
                 } else if (error.message.includes('Failed to fetch')) {
-                    errorMsg += "无法连接到代理服务器，请检查代理地址是否正确";
+                    errorMsg += "无法连接到代理服务器，请检查地址是否正确";
                 } else {
                     errorMsg += error.message;
                 }
@@ -243,24 +241,24 @@
             }
         }
 
-        // ========== 事件绑定（优化版） ==========
+        // ========== 事件绑定 ==========
+        // 点击发送按钮
         sendBtn.addEventListener('click', () => {
             const msg = messageInput.value.trim();
             if (msg) {
-                messageInput.value = "";
                 sendMessageToXinghuo(msg);
             }
         });
 
-        // 回车发送（兼容Enter+Shift换行）
+        // 回车发送（Shift+Enter换行）
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault(); // 阻止默认换行
+                e.preventDefault();
                 sendBtn.click();
             }
         });
 
-        // ========== 初始化 ==========
+        // ========== 页面初始化 ==========
         window.onload = function() {
             addSystemTip("AI助手已加载完成 ✨");
             addMessage("你好！我是基于讯飞星火的AI助手，有什么可以帮你的？", false);
