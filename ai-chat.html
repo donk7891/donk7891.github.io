@@ -108,11 +108,13 @@
 
     <script src="https://cdn.bootcdn.net/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
     <script>
-        // 新配置（Spark Lite）
+        // Spark Lite 完整配置（包含所有必需变量）
         const APPID = "51c66df8";
         const APISecret = "MDEyMWMyNzVmMDE0NzE3MDllZWI3NWRj";
-        const API_KEY = "b1479a04d1015d852d8e1dafce4e08c6"; // 补全开头的英文双引号
-        const domain = "Spark Lite"; // 或者直接用接口地址中的路径
+        const API_KEY = "b1479a04d1015d852d8e1dafce4e08c6";
+        const domain = "Spark Lite";
+        // 新增：Spark Lite 专属接口地址（解决 API_URL 未定义问题）
+        const API_URL = "https://spark-api-open.xf-yun.com/v1/chat/completions";
 
         // ========== 提前获取DOM元素（避免重复查询） ==========
         const chatContainer = document.getElementById("chat-container");
