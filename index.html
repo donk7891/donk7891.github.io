@@ -4,69 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的个人网站</title>
+    <!-- 引入样式重置+通用字体（对齐目标网站风格） -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* 全局基础样式（对齐目标网站极简风格） */
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: "微软雅黑", sans-serif;
         }
 
         body {
+            font-family: 'Inter', "微软雅黑", sans-serif; /* 兼容中文字体 */
+            line-height: 1.6;
+            color: #333;
             background-color: #f8f9fa;
-            padding: 50px 20px;
+            max-width: 1200px;
+            margin: 0 auto; /* 页面居中 */
+            padding: 30px 20px; /* 优化内边距，适配大屏 */
             text-align: center;
         }
 
+        /* 网站标题优化（保留原有样式+提升质感） */
         .site-title {
-            font-size: 32px;
+            font-size: 2.5rem; /* 响应式单位，适配不同屏幕 */
             color: #212529;
             margin-bottom: 10px;
+            font-weight: 500; /* 降低粗体感，更优雅 */
         }
 
         .site-subtitle {
-            font-size: 16px;
+            font-size: 1rem;
             color: #6c757d;
             margin-bottom: 40px;
+            font-weight: 400;
         }
 
-        /* 功能模块：强制隔离，每个模块独立 */
+        /* 功能模块：保留原有逻辑+优化交互和响应式 */
         .func-module {
             max-width: 600px;
-            margin: 30px auto;
-            padding: 20px;
+            margin: 25px auto;
+            padding: 24px;
             background-color: #fff;
             border: 1px solid #e9ecef;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-radius: 12px; /* 圆角更柔和 */
+            box-shadow: 0 3px 8px rgba(0,0,0,0.04); /* 更细腻的阴影 */
+            transition: transform 0.2s ease, box-shadow 0.2s ease; /* hover动效 */
         }
 
-        /* 模块标题：纯文字，无按钮样式 */
+        /* 模块hover动效（目标网站核心交互） */
+        .func-module:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.06);
+        }
+
+        /* 模块标题优化 */
         .func-module h2 {
-            font-size: 22px;
+            font-size: 1.4rem;
             color: #212529;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
             background: none;
             padding: 0;
             border-radius: 0;
+            font-weight: 500;
         }
 
-        /* 按钮：仅按钮元素有样式，标题无干扰 */
+        /* 按钮样式：保留原有配色+优化交互和响应式 */
         .func-btn {
             display: inline-block;
-            padding: 12px 24px;
+            padding: 12px 28px;
             color: white;
             text-decoration: none;
-            border-radius: 6px;
-            font-size: 16px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 400;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            border: none;
+            cursor: pointer;
         }
 
+        /* 按钮hover动效 */
+        .func-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.95;
+            text-decoration: none; /* 去掉下划线 */
+        }
+
+        /* 保留你原有按钮配色 */
         .hitler-video-btn {
             background-color: #0d6efd; /* 希特勒视频按钮：蓝色 */
         }
 
         .gongxi-video-btn {
-            background-color: #fd7e14; /* 恭喜发财视频按钮：橙色，区分样式 */
+            background-color: #fd7e14; /* 恭喜发财视频按钮：橙色 */
         }
 
         .scratch-btn {
@@ -78,42 +109,101 @@
         }
 
         .ai-btn {
-            background-color: #dc3545; /* AI助手按钮：红色，与其他按钮配色区分 */
+            background-color: #dc3545; /* AI助手按钮：红色 */
+        }
+
+        /* 响应式适配（手机端优化） */
+        @media (max-width: 768px) {
+            .site-title {
+                font-size: 2rem; /* 小屏幕标题缩小 */
+            }
+
+            .func-module {
+                max-width: 100%; /* 手机端占满屏幕宽度 */
+                margin: 20px auto;
+                padding: 20px;
+            }
+
+            .func-btn {
+                padding: 10px 24px;
+                font-size: 0.95rem;
+                width: 100%; /* 手机端按钮全屏宽 */
+            }
+        }
+
+        /* 页脚样式（对齐目标网站） */
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
+    <!-- 网站标题区域 -->
     <h1 class="site-title">这是我的个人网站</h1>
     <p class="site-subtitle">我们在这个网站上做了非常多好玩的内容</p>
 
-    <!-- 保留原有：希特勒视频模块 -->
+    <!-- 保留所有原有功能模块 -->
     <div class="func-module">
         <h2>希特勒视频</h2>
         <a href="video-page.html" class="func-btn hitler-video-btn">点击播放希特勒视频</a>
     </div>
 
-    <!-- 新增：恭喜发财视频模块 -->
     <div class="func-module">
         <h2>恭喜发财视频</h2>
         <a href="gongxi-video.html" class="func-btn gongxi-video-btn">点击播放恭喜发财视频</a>
     </div>
 
-    <!-- 保留原有：Scratch模块 -->
     <div class="func-module">
         <h2>我的 Scratch 游戏专区</h2>
         <a href="scratch-index.html" class="func-btn scratch-btn">进入 Scratch 游戏专区</a>
     </div>
 
-    <!-- 保留原有：摩斯电码模块 -->
     <div class="func-module">
         <h2>摩斯电码生成器（编码+解码）</h2>
         <a href="morse-code-generator.html" class="func-btn morse-btn">打开摩斯电码生成器</a>
     </div>
 
-    <!-- 新增：AI助手模块（匹配现有布局和样式规范） -->
     <div class="func-module">
         <h2>讯飞星火AI助手</h2>
         <a href="ai-chat.html" class="func-btn ai-btn">打开AI智能聊天助手</a>
     </div>
+
+    <!-- 新增页脚（对齐目标网站风格） -->
+    <footer>
+        © 2026 我的个人网站 - 极简体验 · 所有功能均可正常使用
+    </footer>
+
+    <!-- 平滑滚动脚本（目标网站核心交互） -->
+    <script>
+        // 为所有链接添加平滑滚动效果
+        document.querySelectorAll('a').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                // 仅对站内锚点链接生效，不影响跳转链接
+                if (this.getAttribute('href').startsWith('#')) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // 页面加载时的淡入效果（提升体验）
+        document.body.style.opacity = 0;
+        window.addEventListener('load', () => {
+            let opacity = 0;
+            const timer = setInterval(() => {
+                if (opacity >= 1) {
+                    clearInterval(timer);
+                }
+                document.body.style.opacity = opacity;
+                opacity += 0.1;
+            }, 30);
+        });
+    </script>
 </body>
 </html>
