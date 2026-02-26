@@ -7,6 +7,8 @@
     <!-- 引入样式重置+通用字体（对齐目标网站风格） -->
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/normalize/8.0.1/normalize.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- 引入图标库（目标网站风格所需） -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* 全局基础样式（对齐目标网站极简风格） */
         * {
@@ -22,11 +24,83 @@
             background-color: #f8f9fa;
             max-width: 1200px;
             margin: 0 auto; /* 页面居中 */
-            padding: 30px 20px; /* 优化内边距，适配大屏 */
+            padding: 0; /* 重置padding，导航栏需要通栏 */
             text-align: center;
         }
 
-        /* 网站标题优化（保留原有样式+提升质感） */
+        /* 新增：顶部导航栏（匹配目标网站风格） */
+        .navbar {
+            background-color: #0056b3;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .navbar-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 20px;
+        }
+
+        .navbar-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        .navbar-menu a.active {
+            background-color: white;
+            color: #0056b3;
+        }
+
+        .navbar-menu a:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        /* 新增：轮播横幅区域（目标网站核心元素） */
+        .carousel {
+            max-width: 1000px;
+            height: 300px;
+            margin: 0 auto 40px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background: url("https://picsum.photos/1000/300?random=1") center/cover no-repeat;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .carousel-text {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .carousel-text h3 {
+            font-size: 22px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .carousel-text p {
+            font-size: 14px;
+        }
+
+        /* 网站标题优化（保留原有样式+适配新布局） */
         .site-title {
             font-size: 2.5rem; /* 响应式单位，适配不同屏幕 */
             color: #212529;
@@ -37,51 +111,117 @@
         .site-subtitle {
             font-size: 1rem;
             color: #6c757d;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
             font-weight: 400;
         }
 
-        /* 功能模块：保留原有逻辑+优化交互和响应式 */
+        /* 新增：功能导航标题（匹配目标网站） */
+        .nav-title {
+            font-size: 1.8rem;
+            color: #212529;
+            margin: 20px 0 30px;
+            font-weight: 500;
+            position: relative;
+            display: inline-block;
+        }
+
+        .nav-title::after {
+            content: "";
+            display: block;
+            width: 60px;
+            height: 3px;
+            background-color: #007bff;
+            margin: 8px auto 0;
+        }
+
+        /* 功能模块：重构为多列卡片布局（核心改造） */
+        .func-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 0 20px;
+        }
+
         .func-module {
-            max-width: 600px;
-            margin: 25px auto;
-            padding: 24px;
+            padding: 28px 24px;
             background-color: #fff;
             border: 1px solid #e9ecef;
             border-radius: 12px; /* 圆角更柔和 */
             box-shadow: 0 3px 8px rgba(0,0,0,0.04); /* 更细腻的阴影 */
             transition: transform 0.2s ease, box-shadow 0.2s ease; /* hover动效 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            height: 100%;
         }
 
-        /* 模块hover动效（目标网站核心交互） */
+        /* 新增：卡片图标（匹配目标网站） */
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        /* 不同功能卡片的图标背景色（匹配按钮配色） */
+        .icon-hitler {
+            background-color: #0d6efd;
+        }
+
+        .icon-gongxi {
+            background-color: #fd7e14;
+        }
+
+        .icon-scratch {
+            background-color: #17a2b8;
+        }
+
+        .icon-morse {
+            background-color: #6f42c1;
+        }
+
+        .icon-ai {
+            background-color: #dc3545;
+        }
+
+        /* 模块hover动效（增强） */
         .func-module:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.06);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         }
 
         /* 模块标题优化 */
         .func-module h2 {
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             color: #212529;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             background: none;
             padding: 0;
             border-radius: 0;
             font-weight: 500;
         }
 
-        /* 按钮样式：保留原有配色+优化交互和响应式 */
+        /* 按钮样式：保留原有配色+适配卡片布局 */
         .func-btn {
             display: inline-block;
-            padding: 12px 28px;
+            padding: 10px 24px;
             color: white;
             text-decoration: none;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 400;
             transition: background-color 0.2s ease, transform 0.2s ease;
             border: none;
             cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
         }
 
         /* 按钮hover动效 */
@@ -91,7 +231,7 @@
             text-decoration: none; /* 去掉下划线 */
         }
 
-        /* 保留你原有按钮配色 */
+        /* 保留原有按钮配色 */
         .hitler-video-btn {
             background-color: #0d6efd; /* 希特勒视频按钮：蓝色 */
         }
@@ -112,72 +252,134 @@
             background-color: #dc3545; /* AI助手按钮：红色 */
         }
 
-        /* 响应式适配（手机端优化） */
+        /* 响应式适配（增强） */
         @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px 20px;
+            }
+
+            .carousel {
+                height: 200px;
+                margin-bottom: 30px;
+            }
+
             .site-title {
                 font-size: 2rem; /* 小屏幕标题缩小 */
             }
 
+            .func-container {
+                grid-template-columns: 1fr;
+                padding: 0 15px;
+            }
+
             .func-module {
-                max-width: 100%; /* 手机端占满屏幕宽度 */
-                margin: 20px auto;
-                padding: 20px;
+                padding: 24px 20px;
             }
 
             .func-btn {
-                padding: 10px 24px;
-                font-size: 0.95rem;
-                width: 100%; /* 手机端按钮全屏宽 */
+                padding: 10px 20px;
+                font-size: 0.9rem;
             }
         }
 
-        /* 页脚样式（对齐目标网站） */
+        /* 页脚样式（优化适配新布局） */
         footer {
-            margin-top: 60px;
-            padding-top: 20px;
+            margin: 60px auto 30px;
+            padding: 20px;
             border-top: 1px solid #eee;
             color: #666;
             font-size: 0.9rem;
+            max-width: 1100px;
+        }
+
+        /* 内容容器（统一内边距） */
+        .content-wrapper {
+            padding: 0 20px;
         }
     </style>
 </head>
 <body>
-    <!-- 网站标题区域 -->
-    <h1 class="site-title">这是我的个人网站</h1>
-    <p class="site-subtitle">我们在这个网站上做了非常多好玩的内容</p>
-
-    <!-- 保留所有原有功能模块 -->
-    <div class="func-module">
-        <h2>希特勒视频</h2>
-        <a href="video-page.html" class="func-btn hitler-video-btn">点击播放希特勒视频</a>
+    <!-- 新增：顶部导航栏 -->
+    <div class="navbar">
+        <div class="navbar-title">我的个人网站</div>
+        <div class="navbar-menu">
+            <a href="#" class="active">首页</a>
+            <a href="#">视频专区</a>
+            <a href="#">游戏专区</a>
+            <a href="#">工具专区</a>
+        </div>
     </div>
 
-    <div class="func-module">
-        <h2>恭喜发财视频</h2>
-        <a href="gongxi-video.html" class="func-btn gongxi-video-btn">点击播放恭喜发财视频</a>
+    <!-- 内容容器 -->
+    <div class="content-wrapper">
+        <!-- 网站标题区域 -->
+        <h1 class="site-title">这是我的个人网站</h1>
+        <p class="site-subtitle">我们在这个网站上做了非常多好玩的内容</p>
+
+        <!-- 新增：轮播横幅 -->
+        <div class="carousel">
+            <div class="carousel-text">
+                <h3>编程与开发</h3>
+                <p>分享我的开发经验和学习心得</p>
+            </div>
+        </div>
+
+        <!-- 新增：功能导航标题 -->
+        <h2 class="nav-title">功能导航</h2>
+
+        <!-- 重构：功能模块为多列卡片布局 -->
+        <div class="func-container">
+            <!-- 保留所有原有功能模块 -->
+            <div class="func-module">
+                <div class="card-icon icon-hitler">
+                    <i class="fas fa-video"></i>
+                </div>
+                <h2>希特勒视频</h2>
+                <a href="video-page.html" class="func-btn hitler-video-btn">点击播放希特勒视频</a>
+            </div>
+
+            <div class="func-module">
+                <div class="card-icon icon-gongxi">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <h2>恭喜发财视频</h2>
+                <a href="gongxi-video.html" class="func-btn gongxi-video-btn">点击播放恭喜发财视频</a>
+            </div>
+
+            <div class="func-module">
+                <div class="card-icon icon-scratch">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <h2>我的 Scratch 游戏专区</h2>
+                <a href="scratch-index.html" class="func-btn scratch-btn">进入 Scratch 游戏专区</a>
+            </div>
+
+            <div class="func-module">
+                <div class="card-icon icon-morse">
+                    <i class="fas fa-code"></i>
+                </div>
+                <h2>摩斯电码生成器（编码+解码）</h2>
+                <a href="morse-code-generator.html" class="func-btn morse-btn">打开摩斯电码生成器</a>
+            </div>
+
+            <div class="func-module">
+                <div class="card-icon icon-ai">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h2>讯飞星火AI助手</h2>
+                <a href="ai-chat.html" class="func-btn ai-btn">打开AI智能聊天助手</a>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer>
+            © 2026 我的个人网站 - 极简体验 · 所有功能均可正常使用
+        </footer>
     </div>
 
-    <div class="func-module">
-        <h2>我的 Scratch 游戏专区</h2>
-        <a href="scratch-index.html" class="func-btn scratch-btn">进入 Scratch 游戏专区</a>
-    </div>
-
-    <div class="func-module">
-        <h2>摩斯电码生成器（编码+解码）</h2>
-        <a href="morse-code-generator.html" class="func-btn morse-btn">打开摩斯电码生成器</a>
-    </div>
-
-    <div class="func-module">
-        <h2>讯飞星火AI助手</h2>
-        <a href="ai-chat.html" class="func-btn ai-btn">打开AI智能聊天助手</a>
-    </div>
-
-    <!-- 新增页脚（对齐目标网站风格） -->
-    <footer>
-        © 2026 我的个人网站 - 极简体验 · 所有功能均可正常使用
-    </footer>
-
-    <!-- 平滑滚动脚本（目标网站核心交互） -->
+    <!-- 保留原有平滑滚动脚本 + 新增轮播图脚本 -->
     <script>
         // 为所有链接添加平滑滚动效果
         document.querySelectorAll('a').forEach(anchor => {
@@ -204,6 +406,23 @@
                 opacity += 0.1;
             }, 30);
         });
+
+        // 新增：轮播图自动切换（可选）
+        const carouselImages = [
+            "https://picsum.photos/1000/300?random=1",
+            "https://picsum.photos/1000/300?random=2",
+            "https://picsum.photos/1000/300?random=3"
+        ];
+        let currentIndex = 0;
+        const carousel = document.querySelector('.carousel');
+        
+        function changeCarousel() {
+            currentIndex = (currentIndex + 1) % carouselImages.length;
+            carousel.style.background = `url("${carouselImages[currentIndex]}") center/cover no-repeat`;
+        }
+        
+        // 每5秒切换一次轮播图
+        setInterval(changeCarousel, 5000);
     </script>
 </body>
 </html>
