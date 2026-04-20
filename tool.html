@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工具专区 - 我的个人网站</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', "微软雅黑", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0;
+            text-align: center;
+        }
+        .navbar {
+            background-color: #0056b3;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .navbar-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .navbar-menu {
+            display: flex;
+            gap: 20px;
+        }
+        .navbar-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        .navbar-menu a.active {
+            background-color: white;
+            color: #0056b3;
+        }
+        .navbar-menu a:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+        .site-title {
+            font-size: 2.5rem;
+            color: #212529;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .site-subtitle {
+            font-size: 1rem;
+            color: #6c757d;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+        .func-container {
+            max-width: 800px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 0 20px;
+        }
+        .func-module {
+            padding: 28px 24px;
+            background-color: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.04);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            height: 100%;
+        }
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+        .icon-morse { background-color: #6f42c1; }
+        .icon-ai { background-color: #dc3545; }
+        .func-module:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        .func-module h2 {
+            font-size: 1.2rem;
+            color: #212529;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .func-btn {
+            display: inline-block;
+            padding: 10px 24px;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+            width: 100%;
+        }
+        .func-btn:hover { opacity: 0.95; }
+        .morse-btn { background-color: #6f42c1; }
+        .ai-btn { background-color: #dc3545; }
+        footer {
+            margin: 60px auto 30px;
+            padding: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <div class="navbar-title">我的个人网站</div>
+    <div class="navbar-menu">
+        <a href="index.html">首页</a>
+        <a href="video.html">视频专区</a>
+        <a href="game.html">游戏专区</a>
+        <a href="tool.html" class="active">工具专区</a>
+    </div>
+</div>
+
+<div class="content-wrapper">
+    <h1 class="site-title">工具专区</h1>
+    <p class="site-subtitle">实用在线工具合集</p>
+
+    <div class="func-container">
+        <div class="func-module">
+            <div class="card-icon icon-morse"><i class="fas fa-code"></i></div>
+            <h2>摩斯电码生成器</h2>
+            <a href="morse-code-generator.html" class="func-btn morse-btn">打开摩斯电码生成器</a>
+        </div>
+        <div class="func-module">
+            <div class="card-icon icon-ai"><i class="fas fa-robot"></i></div>
+            <h2>讯飞星火AI助手</h2>
+            <a href="ai-chat.html" class="func-btn ai-btn">打开AI智能聊天助手</a>
+        </div>
+    </div>
+
+    <footer>© 2026 我的个人网站 - 工具专区</footer>
+</div>
+</body>
+</html>
