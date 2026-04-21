@@ -69,8 +69,11 @@
             font-weight: 400;
         }
         .func-container {
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
             padding: 0 20px;
         }
         .func-module {
@@ -84,6 +87,7 @@
             flex-direction: column;
             align-items: center;
             gap: 15px;
+            height: 100%;
         }
         .card-icon {
             width: 60px;
@@ -96,6 +100,8 @@
             color: white;
         }
         .icon-scratch { background-color: #17a2b8; }
+        .icon-eco { background-color: #4CAF50; }
+
         .func-module:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
@@ -118,6 +124,8 @@
         }
         .func-btn:hover { opacity: 0.95; }
         .scratch-btn { background-color: #17a2b8; }
+        .eco-btn { background-color: #4CAF50; }
+
         footer {
             margin: 60px auto 30px;
             padding: 20px;
@@ -131,6 +139,7 @@
     </style>
 </head>
 <body>
+
 <div class="navbar">
     <div class="navbar-title">我的个人网站</div>
     <div class="navbar-menu">
@@ -143,17 +152,30 @@
 
 <div class="content-wrapper">
     <h1 class="site-title">游戏专区</h1>
-    <p class="site-subtitle">趣味Scratch小游戏合集</p>
+    <p class="site-subtitle">趣味小游戏与模拟体验合集</p>
 
     <div class="func-container">
+        <!-- 原有 Scratch 游戏 -->
         <div class="func-module">
-            <div class="card-icon icon-scratch"><i class="fas fa-gamepad"></i></div>
+            <div class="card-icon icon-scratch">
+                <i class="fas fa-gamepad"></i>
+            </div>
             <h2>Scratch游戏专区</h2>
             <a href="scratch-index.html" class="func-btn scratch-btn">进入 Scratch 游戏专区</a>
+        </div>
+
+        <!-- 新增：生态系统模拟器 -->
+        <div class="func-module">
+            <div class="card-icon icon-eco">
+                <i class="fas fa-leaf"></i>
+            </div>
+            <h2>生态系统模拟器</h2>
+            <a href="https://donk7891.github.io/ecosystem-simulator.html" class="func-btn eco-btn">开始体验</a>
         </div>
     </div>
 
     <footer>© 2026 我的个人网站 - 游戏专区</footer>
 </div>
+
 </body>
 </html>
