@@ -6,6 +6,7 @@
     <title>生态系统模拟器 - 趣味科普游戏</title>
     <meta name="description" content="生态系统模拟器游戏，探索食物链与生态平衡的奥秘！">
     <style>
+        /* 原有的CSS样式保持不变 */
         * {
             margin: 0;
             padding: 0;
@@ -777,12 +778,12 @@
                     <div class="organism-icon">🦅</div>
                     <div class="organism-info">
                         <div class="organism-name-large">老鹰（顶级消费者）</div>
-                        <div class="organism-description">捕食鸡。1只鸡可供1只老鹰吃3天，每年繁殖一次。</div>
+                        <div class="organism-description">捕食鸡。1只鸡可供1只老鹰吃3天，每年繁殖一次。现在也可以捕食小鸡。</div>
                     </div>
                     <div class="organism-controls">
                         <div class="count-control">
                             <button class="count-btn decrease" data-type="eagle">-</button>
-                            <input type="number" class="count-input" id="eagleCount" value="0" min="0" max="1000">
+                            <input type="number" class="count-input" id="eagleCount" value="1" min="0" max="1000">
                             <button class="count-btn increase" data-type="eagle">+</button>
                         </div>
                         <button class="btn-add" data-type="eagle">添加到生态系统</button>
@@ -801,14 +802,14 @@
                     <div class="death-conditions-title">死亡条件（新规则）</div>
                     <div class="death-conditions-text">
                         <strong>生态系统崩溃条件：</strong><br>
-                        1. 生产者（草）全部死亡<br>
-                        2. 所有消费者全部死亡<br><br>
+                        1. 必须添加所有生物（草、蚜虫、瓢虫、鸡、老鹰）<br>
+                        2. 任意一种生物数量归零，整个生态系统立即崩溃<br><br>
                         
                         <strong>消费者死亡条件：</strong><br>
                         • 蚜虫：草的数量为0<br>
                         • 瓢虫：蚜虫数量为0<br>
                         • 鸡：蚜虫、瓢虫数量都为0<br>
-                        • 老鹰：鸡、鸡蛋数量都为0
+                        • 老鹰：鸡、鸡蛋数量都为0（现在也包括小鸡）
                     </div>
                 </div>
             </div>
@@ -849,7 +850,7 @@
     </div>
 
     <script>
-        // 生态系统模拟器
+        // 生态系统模拟器 - 优化版本
         class EcosystemSimulator {
             constructor() {
                 this.organisms = {
@@ -878,7 +879,7 @@
                 // 调试日志
                 this.debug = true;
                 
-                console.log("生态系统模拟器已初始化");
+                console.log("生态系统模拟器已初始化（优化版）");
             }
             
             // 重置生态系统
@@ -1143,10 +1144,15 @@
                     return;
                 }
                 
-                // 检查是否有生物
-                const totalOrganisms = Object.values(this.organisms).reduce((sum, org) => sum + org.count, 0);
-                if (totalOrganisms === 0) {
-                    alert('请先添加一些生物到生态系统！');
+                // 检查是否添加了所有生物
+                if (!this.checkAllOrganismsAdded()) {
+                    alert('⚠️ 请注意：必须添加所有生物（草、蚜虫、瓢虫、鸡、老鹰）才能开始模拟！\n\n生态系统要求完整的食物链才能运行。');
+                    return;
+                }
+                
+                // 检查是否有生物数量为0
+                if (this.checkAnyOrganismZero()) {
+                    alert('⚠️ 错误：您添加了所有生物，但某些生物的数量为0！\n\n请确保每种生物都有至少1个个体。');
                     return;
                 }
                 
@@ -1169,6 +1175,24 @@
                 }, this.simulationSpeed);
                 
                 if (this.debug) console.log('模拟已开始');
+            }
+            
+            // 检查是否添加了所有生物
+            checkAllOrganismsAdded() {
+                return this.organisms.grass.count > 0 && 
+                       this.organisms.aphid.count > 0 && 
+                       this.organisms.ladybug.count > 0 && 
+                       this.organisms.chicken.count > 0 && 
+                       this.organisms.eagle.count > 0;
+            }
+            
+            // 检查是否有生物数量为0
+            checkAnyOrganismZero() {
+                return this.organisms.grass.count === 0 || 
+                       this.organisms.aphid.count === 0 || 
+                       this.organisms.ladybug.count === 0 || 
+                       this.organisms.chicken.count === 0 || 
+                       this.organisms.eagle.count === 0;
             }
             
             // 停止模拟
@@ -1461,48 +1485,53 @@
                 }
             }
             
-            // 模拟老鹰
+            // 模拟老鹰 - 优化版本，现在可以吃小鸡
             simulateEagles(dayEvents) {
                 if (this.organisms.eagle.count > 0) {
                     // 老鹰吃鸡（1只鸡可供1只老鹰吃3天）
-                    const requiredChickens = Math.ceil(this.organisms.eagle.count / 3);
-                    
                     let chickensEaten = 0;
                     let eggsEaten = 0;
+                    let chicksEaten = 0;
                     
-                    if (this.organisms.chicken.count >= requiredChickens) {
-                        chickensEaten = requiredChickens;
-                        this.organisms.chicken.count -= requiredChickens;
-                        dayEvents.push(`🦅 ${this.organisms.eagle.count} 只老鹰吃掉了 ${chickensEaten} 只鸡`);
-                    } else {
-                        // 鸡不足，吃鸡蛋
-                        chickensEaten = this.organisms.chicken.count;
-                        this.organisms.chicken.count = 0;
+                    // 优先吃成年鸡
+                    if (this.organisms.chicken.count > 0) {
+                        // 老鹰吃成年鸡
+                        const requiredChickens = Math.ceil(this.organisms.eagle.count / 3);
+                        chickensEaten = Math.min(this.organisms.chicken.count, requiredChickens);
+                        this.organisms.chicken.count -= chickensEaten;
                         
                         if (chickensEaten > 0) {
-                            dayEvents.push(`🦅 ${this.organisms.eagle.count} 只老鹰吃掉了 ${chickensEaten} 只鸡`);
+                            dayEvents.push(`🦅 ${this.organisms.eagle.count} 只老鹰吃掉了 ${chickensEaten} 只成年鸡`);
                         }
-                        
-                        // 计算需要消耗的鸡蛋
-                        const remainingChickens = requiredChickens - chickensEaten;
+                    }
+                    
+                    // 如果成年鸡不够，吃鸡蛋
+                    if (chickensEaten < this.organisms.eagle.count && this.organisms.chicken.eggs > 0) {
+                        const remainingChickens = this.organisms.eagle.count - chickensEaten;
                         const requiredEggs = remainingChickens * 5; // 假设1只鸡相当于5个鸡蛋
+                        eggsEaten = Math.min(this.organisms.chicken.eggs, requiredEggs);
+                        this.organisms.chicken.eggs -= eggsEaten;
                         
-                        if (this.organisms.chicken.eggs >= requiredEggs) {
-                            eggsEaten = requiredEggs;
-                            this.organisms.chicken.eggs -= requiredEggs;
+                        if (eggsEaten > 0) {
                             dayEvents.push(`🦅 老鹰还吃掉了 ${eggsEaten} 个鸡蛋`);
-                        } else {
-                            eggsEaten = this.organisms.chicken.eggs;
-                            this.organisms.chicken.eggs = 0;
-                            if (eggsEaten > 0) {
-                                dayEvents.push(`🦅 老鹰还吃掉了 ${eggsEaten} 个鸡蛋`);
-                            }
+                        }
+                    }
+                    
+                    // 如果前面的食物还不够，吃小鸡
+                    if ((chickensEaten + eggsEaten) < this.organisms.eagle.count && this.organisms.chicken.chicks > 0) {
+                        const remainingChickens = this.organisms.eagle.count - chickensEaten;
+                        const chicksToEat = Math.min(this.organisms.chicken.chicks, remainingChickens);
+                        chicksEaten = chicksToEat;
+                        this.organisms.chicken.chicks -= chicksToEat;
+                        
+                        if (chicksEaten > 0) {
+                            dayEvents.push(`🦅 老鹰还吃掉了 ${chicksEaten} 只小鸡`);
                         }
                     }
                     
                     // 老鹰繁殖（每年繁殖一次）
                     if (this.day % 365 === 0 && this.organisms.eagle.count > 0 && this.organisms.eagle.count < 50) {
-                        if (this.organisms.chicken.count > 0) { // 只有有食物时才繁殖
+                        if ((this.organisms.chicken.count > 0 || this.organisms.chicken.eggs > 0 || this.organisms.chicken.chicks > 0)) { // 只有有食物时才繁殖
                             const newEggs = this.organisms.eagle.count * (Math.floor(Math.random() * 2) + 1); // 1-2个卵
                             this.organisms.eagle.eggs += newEggs;
                             this.organisms.eagle.hatchDays = 150;
@@ -1566,32 +1595,50 @@
                     }
                 }
                 
-                // 老鹰死亡条件：鸡、鸡蛋数量都为0
+                // 老鹰死亡条件：鸡、鸡蛋、小鸡数量都为0
                 if (this.organisms.eagle.count > 0 && 
                     this.organisms.chicken.count === 0 && 
-                    this.organisms.chicken.eggs === 0) {
+                    this.organisms.chicken.eggs === 0 &&
+                    this.organisms.chicken.chicks === 0) {
                     const deadEagles = this.organisms.eagle.count; // 全部死亡
                     this.organisms.eagle.count = 0;
                     if (deadEagles > 0) {
-                        dayEvents.push(`💀 没有鸡和鸡蛋可吃，所有 ${deadEagles} 只老鹰死亡`);
+                        dayEvents.push(`💀 没有鸡、鸡蛋和小鸡可吃，所有 ${deadEagles} 只老鹰死亡`);
                     }
                 }
             }
             
             // 检查生态系统是否崩溃 - 修改后的条件
             checkEcosystemCollapse() {
-                // 条件1：生产者（草）全部死亡
-                if (this.organisms.grass.count === 0) {
-                    this.collapseReason = "生产者（草）全部死亡，生态系统失去能量来源。";
+                // 新规则：必须添加所有生物，任意一种生物数量归零即崩溃
+                if (!this.checkAllOrganismsAdded()) {
+                    this.collapseReason = "未添加所有生物，生态系统不完整。";
                     return true;
                 }
                 
-                // 条件2：消费者全部死亡
-                if (this.organisms.aphid.count === 0 && 
-                    this.organisms.ladybug.count === 0 && 
-                    this.organisms.chicken.count === 0 && 
-                    this.organisms.eagle.count === 0) {
-                    this.collapseReason = "所有消费者死亡，生态系统失去生物多样性。";
+                // 检查任意一种生物数量是否为0
+                if (this.organisms.grass.count === 0) {
+                    this.collapseReason = "草的数量为0，生态系统失去能量来源。";
+                    return true;
+                }
+                
+                if (this.organisms.aphid.count === 0) {
+                    this.collapseReason = "蚜虫数量为0，食物链断裂。";
+                    return true;
+                }
+                
+                if (this.organisms.ladybug.count === 0) {
+                    this.collapseReason = "瓢虫数量为0，食物链断裂。";
+                    return true;
+                }
+                
+                if (this.organisms.chicken.count === 0) {
+                    this.collapseReason = "鸡的数量为0，食物链断裂。";
+                    return true;
+                }
+                
+                if (this.organisms.eagle.count === 0) {
+                    this.collapseReason = "老鹰数量为0，食物链断裂。";
                     return true;
                 }
                 
@@ -1695,22 +1742,42 @@
                     analysis += this.collapseReason;
                     
                     // 详细分析崩溃原因
-                    if (this.organisms.grass.count === 0) {
+                    if (this.collapseReason.includes("草")) {
                         analysis += '\n\n详细过程：';
                         analysis += '\n1. 生产者（草）全部死亡';
                         analysis += '\n2. 草死亡后，蚜虫没有食物，全部死亡';
                         analysis += '\n3. 蚜虫死亡后，瓢虫没有食物，全部死亡';
                         analysis += '\n4. 蚜虫和瓢虫都死亡后，鸡没有食物，全部死亡';
-                        analysis += '\n5. 鸡和鸡蛋都死亡后，老鹰没有食物，全部死亡';
+                        analysis += '\n5. 鸡、鸡蛋、小鸡都死亡后，老鹰没有食物，全部死亡';
                         analysis += '\n6. 最终生态系统崩溃';
-                    } else if (this.organisms.aphid.count === 0 && 
-                              this.organisms.ladybug.count === 0 && 
-                              this.organisms.chicken.count === 0 && 
-                              this.organisms.eagle.count === 0) {
+                    } else if (this.collapseReason.includes("蚜虫")) {
                         analysis += '\n\n详细过程：';
-                        analysis += '\n1. 所有消费者死亡，生态系统失去生物多样性';
-                        analysis += '\n2. 虽然草还在，但缺少消费者，生态系统的物质循环被破坏';
+                        analysis += '\n1. 蚜虫全部死亡';
+                        analysis += '\n2. 蚜虫死亡后，瓢虫没有食物，全部死亡';
+                        analysis += '\n3. 蚜虫和瓢虫都死亡后，鸡没有食物，全部死亡';
+                        analysis += '\n4. 鸡、鸡蛋、小鸡都死亡后，老鹰没有食物，全部死亡';
+                        analysis += '\n5. 最终生态系统崩溃';
+                    } else if (this.collapseReason.includes("瓢虫")) {
+                        analysis += '\n\n详细过程：';
+                        analysis += '\n1. 瓢虫全部死亡';
+                        analysis += '\n2. 瓣虫死亡后，鸡没有食物，全部死亡';
+                        analysis += '\n3. 鸡、鸡蛋、小鸡都死亡后，老鹰没有食物，全部死亡';
+                        analysis += '\n4. 最终生态系统崩溃';
+                    } else if (this.collapseReason.includes("鸡")) {
+                        analysis += '\n\n详细过程：';
+                        analysis += '\n1. 鸡全部死亡';
+                        analysis += '\n2. 鸡死亡后，老鹰没有食物，全部死亡';
                         analysis += '\n3. 最终生态系统崩溃';
+                    } else if (this.collapseReason.includes("老鹰")) {
+                        analysis += '\n\n详细过程：';
+                        analysis += '\n1. 老鹰全部死亡';
+                        analysis += '\n2. 顶级消费者缺失，生态系统失衡';
+                        analysis += '\n3. 最终生态系统崩溃';
+                    } else if (this.collapseReason.includes("未添加所有生物")) {
+                        analysis += '\n\n详细过程：';
+                        analysis += '\n1. 系统要求完整的食物链才能运行';
+                        analysis += '\n2. 必须包含所有生物：草、蚜虫、瓢虫、鸡、老鹰';
+                        analysis += '\n3. 缺少任何一种都会导致生态系统不稳定';
                     }
                 } else if (this.systemStable) {
                     // 生态系统稳定的原因分析
@@ -1732,8 +1799,8 @@
                         analysis += ' 鸡的食物来源充足。';
                     }
                     
-                    if (this.organisms.eagle.count > 0 && this.organisms.chicken.count > 0) {
-                        analysis += ' 老鹰的食物来源充足。';
+                    if (this.organisms.eagle.count > 0 && (this.organisms.chicken.count > 0 || this.organisms.chicken.eggs > 0 || this.organisms.chicken.chicks > 0)) {
+                        analysis += ' 老鹰的食物来源充足（包括成年鸡、鸡蛋、小鸡）。';
                     }
                 } else {
                     analysis = '模拟尚未完成，请继续运行模拟或重置系统。';
@@ -1853,7 +1920,7 @@
             // 初始化UI
             simulator.updateUI();
             
-            console.log('生态系统模拟器已初始化完成');
+            console.log('生态系统模拟器已初始化完成（优化版）');
         });
     </script>
 </body>
