@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫雷游戏</title>
+    <link href="https://fonts.googleapis.com/css2?family=Arial:wght@900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #D5EDFF;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            text-align: center;
+            max-width: 100%;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .header img {
+            width: 32px;
+            height: 32px;
+            vertical-align: middle;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .bomb-count, .flag-count {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .board {
+            display: inline-grid;
+            gap: 2px;
+            padding: 10px;
+            background-color: #aaa;
+            border-radius: 5px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .tile {
+            width: 30px;
+            height: 30px;
+            background-color: #d3d3d3;
+            border: 2px outset #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            position: relative;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .tile {
+                width: 15px;
+                height: 15px;
+                font-size: 8px;
+            }
+        }
+
+        .tile.revealed {
+            background-color: #c1c1c1;
+            border: 1px solid #aaa;
+            transform: scale(0.98);
+        }
+
+        .tile.flagged::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://img.alicdn.com/imgextra/i1/O1CN011JCO9B23Ug3p5EzB8_!!6000000007259-2-tps-898-898.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .tile.bomb::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://img.alicdn.com/imgextra/i3/O1CN01sMUftH1WAB0m3EG8W_!!6000000002747-2-tps-357-356.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .tile[data-value="1"] {
+            color: #0101FE;
+        }
+
+        .tile[data-value="2"] {
+            color: #0A8209;
+        }
+
+        .tile[data-value="3"] {
+            color: #e74c3c;
+        }
+
+        .tile[data-value="4"] {
+            color: #000080;
+        }
+
+        .tile[data-value="5"] {
+            color: #800000;
+        }
+
+        .tile[data-value="6"] {
+            color: #008080;
+        }
+
+        .tile[data-value="7"] {
+            color: #000000;
+        }
+
+        .tile[data-value="8"] {
+            color: #808080;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .message {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <span>💣</span>
+            <h1>Minesweeper</h1>
+            <span>💣</span>
+        </div>
+        
+        <div class="stats">
+            <div class="bomb-count">💣 炸弹: <span id="bomb-count">0</span></div>
+            <div class="flag-count">🚩 标记: <span id="flag-count">0</span></div>
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="controls">
+            <button id="reset-btn">New Game</button>
+        </div>
+    </div>
+
+    <div class="overlay hidden" id="overlay">
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        // 游戏配置
+        const config = {
+            size: 10,           // 网格大小 (size x size)
+            bombFrequency: 0.15 // 炸弹概率 (15%)
+        };
+
+        // 游戏状态
+        let gameState = {
+            board: [],
+            revealedCount: 0,
+            flaggedTiles: new Set(),
+            gameOver: false,
+            gameWon: false,
+            totalBombs: 0
+        };
+
+        // DOM元素
+        const boardElement = document.getElementById('board');
+        const bombCountElement = document.getElementById('bomb-count');
+        const flagCountElement = document.getElementById('flag-count');
+        const resetButton = document.getElementById('reset-btn');
+        const overlay = document.getElementById('overlay');
+        const messageElement = document.getElementById('message');
+
+        // 初始化游戏
+        function initGame() {
+            // 重置游戏状态
+            gameState = {
+                board: [],
+                revealedCount: 0,
+                flaggedTiles: new Set(),
+                gameOver: false,
+                gameWon: false,
+                totalBombs: 0
+            };
+
+            // 计算炸弹数量
+            gameState.totalBombs = Math.floor(config.size * config.size * config.bombFrequency);
+            
+            // 更新炸弹计数显示
+            bombCountElement.textContent = gameState.totalBombs;
+            flagCountElement.textContent = '0';
+
+            // 创建空的二维数组
+            for (let i = 0; i < config.size; i++) {
+                gameState.board[i] = [];
+                for (let j = 0; j < config.size; j++) {
+                    gameState.board[i][j] = {
+                        isBomb: false,
+                        neighborBombs: 0,
+                        revealed: false,
+                        flagged: false
+                    };
+                }
+            }
+
+            // 放置炸弹
+            placeBombs();
+
+            // 计算每个位置的邻居炸弹数
+            calculateNeighborBombs();
+
+            // 渲染游戏板
+            renderBoard();
+
+            // 隐藏覆盖层
+            overlay.classList.add('hidden');
+        }
+
+        // 放置炸弹
+        function placeBombs() {
+            let bombsPlaced = 0;
+            while (bombsPlaced < gameState.totalBombs) {
+                const row = Math.floor(Math.random() * config.size);
+                const col = Math.floor(Math.random() * config.size);
+
+                if (!gameState.board[row][col].isBomb) {
+                    gameState.board[row][col].isBomb = true;
+                    bombsPlaced++;
+                }
+            }
+        }
+
+        // 计算每个位置的邻居炸弹数
+        function calculateNeighborBombs() {
+            for (let row = 0; row < config.size; row++) {
+                for (let col = 0; col < config.size; col++) {
+                    if (!gameState.board[row][col].isBomb) {
+                        let count = 0;
+
+                        // 检查8个方向的邻居
+                        for (let dr = -1; dr <= 1; dr++) {
+                            for (let dc = -1; dc <= 1; dc++) {
+                                if (dr === 0 && dc === 0) continue;
+
+                                const newRow = row + dr;
+                                const newCol = col + dc;
+
+                                if (isValidPosition(newRow, newCol) && gameState.board[newRow][newCol].isBomb) {
+                                    count++;
+                                }
+                            }
+                        }
+
+                        gameState.board[row][col].neighborBombs = count;
+                    }
+                }
+            }
+        }
+
+        // 检查位置是否有效
+        function isValidPosition(row, col) {
+            return row >= 0 && row < config.size && col >= 0 && col < config.size;
+        }
+
+        // 渲染游戏板
+        function renderBoard() {
+            boardElement.innerHTML = '';
+
+            // 设置网格布局
+            boardElement.style.gridTemplateColumns = `repeat(${config.size}, 1fr)`;
+            boardElement.style.gridTemplateRows = `repeat(${config.size}, 1fr)`;
+
+            for (let row = 0; row < config.size; row++) {
+                for (let col = 0; col < config.size; col++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.setAttribute('data-tile', `${row},${col}`);
+                    
+                    // 添加点击事件监听器
+                    tile.addEventListener('click', () => handleTileClick(row, col));
+                    tile.addEventListener('contextmenu', (e) => {
+                        e.preventDefault(); // 阻止右键菜单
+                        handleRightClick(row, col);
+                    });
+
+                    boardElement.appendChild(tile);
+                }
+            }
+        }
+
+        // 处理左键点击
+        function handleTileClick(row, col) {
+            // 如果游戏结束或已经翻开或被标记，则忽略点击
+            if (gameState.gameOver || gameState.gameWon || 
+                gameState.board[row][col].revealed || 
+                gameState.board[row][col].flagged) {
+                return;
+            }
+
+            revealTile(row, col);
+        }
+
+        // 揭开方块
+        function revealTile(row, col) {
+            const tile = gameState.board[row][col];
+
+            // 如果已经被翻开，返回
+            if (tile.revealed) return;
+
+            // 标记为已翻开
+            tile.revealed = true;
+            gameState.revealedCount++;
+
+            // 获取对应的DOM元素
+            const tileElement = document.querySelector(`[data-tile="${row},${col}"]`);
+
+            // 添加已翻开的类
+            tileElement.classList.add('revealed');
+
+            // 如果是炸弹，游戏结束
+            if (tile.isBomb) {
+                tileElement.classList.add('bomb');
+                endGame(false); // 游戏失败
+                return;
+            }
+
+            // 显示邻居炸弹数
+            if (tile.neighborBombs > 0) {
+                tileElement.textContent = tile.neighborBombs;
+                tileElement.setAttribute('data-value', tile.neighborBombs);
+            } else {
+                // 如果是空白区域，递归翻开邻居
+                revealNeighbors(row, col);
+            }
+
+            // 检查是否获胜
+            checkWin();
+        }
+
+        // 递归翻开邻居
+        function revealNeighbors(row, col) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+
+                    if (isValidPosition(newRow, newCol) && 
+                        !gameState.board[newRow][newCol].revealed && 
+                        !gameState.board[newRow][newCol].flagged) {
+                        
+                        revealTile(newRow, newCol);
+                    }
+                }
+            }
+        }
+
+        // 处理右键点击（标记/取消标记）
+        function handleRightClick(row, col) {
+            // 如果游戏结束或已经翻开，则忽略
+            if (gameState.gameOver || gameState.gameWon || 
+                gameState.board[row][col].revealed) {
+                return;
+            }
+
+            const tile = gameState.board[row][col];
+            const tileElement = document.querySelector(`[data-tile="${row},${col}"]`);
+            const tileKey = `${row},${col}`;
+
+            if (tile.flagged) {
+                // 取消标记
+                tile.flagged = false;
+                gameState.flaggedTiles.delete(tileKey);
+                tileElement.classList.remove('flagged');
+            } else {
+                // 标记
+                tile.flagged = true;
+                gameState.flaggedTiles.add(tileKey);
+                tileElement.classList.add('flagged');
+            }
+
+            // 更新标记计数
+            flagCountElement.textContent = gameState.flaggedTiles.size;
+        }
+
+        // 检查是否获胜
+        function checkWin() {
+            // 检查是否所有非炸弹的方块都被翻开
+            const totalSafeTiles = (config.size * config.size) - gameState.totalBombs;
+            if (gameState.revealedCount === totalSafeTiles) {
+                endGame(true); // 游戏获胜
+            }
+        }
+
+        // 结束游戏
+        function endGame(isWin) {
+            gameState.gameOver = true;
+            gameState.gameWon = isWin;
+
+            if (isWin) {
+                messageElement.textContent = '🎉 你赢了! 🎉';
+            } else {
+                messageElement.textContent = '💥 游戏结束! 💥';
+                
+                // 显示所有炸弹
+                showAllBombs();
+            }
+
+            overlay.classList.remove('hidden');
+        }
+
+        // 显示所有炸弹
+        function showAllBombs() {
+            for (let row = 0; row < config.size; row++) {
+                for (let col = 0; col < config.size; col++) {
+                    const tile = gameState.board[row][col];
+                    const tileElement = document.querySelector(`[data-tile="${row},${col}"]`);
+
+                    if (tile.isBomb && !tile.revealed) {
+                        tileElement.classList.add('bomb', 'revealed');
+                    }
+                }
+            }
+        }
+
+        // 重置游戏
+        function resetGame() {
+            initGame();
+        }
+
+        // 初始化事件监听器
+        function initEventListeners() {
+            resetButton.addEventListener('click', resetGame);
+        }
+
+        // 启动游戏
+        function startGame() {
+            initEventListeners();
+            initGame();
+        }
+
+        // 页面加载完成后启动游戏
+        window.addEventListener('DOMContentLoaded', startGame);
+    </script>
+</body>
+</html>
