@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工具专区 - 我的个人网站</title>
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/normalize/8.0.1/normalize.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -54,7 +54,7 @@
             color: #0056b3;
         }
         .navbar-menu a:hover {
-            background-color: rgba(255,255,255,0.2);
+            background-color: rgba(255,255,0.2);
         }
         .site-title {
             font-size: 2.5rem;
@@ -101,6 +101,8 @@
         }
         .icon-morse { background-color: #6f42c1; }
         .icon-ai { background-color: #dc3545; }
+        .icon-au { background-color: #2196F3; }
+
         .func-module:hover {
             transform: translateY(-4px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
@@ -124,6 +126,8 @@
         .func-btn:hover { opacity: 0.95; }
         .morse-btn { background-color: #6f42c1; }
         .ai-btn { background-color: #dc3545; }
+        .au-btn { background-color: #2196F3; }
+
         footer {
             margin: 60px auto 30px;
             padding: 20px;
@@ -152,15 +156,31 @@
     <p class="site-subtitle">实用在线工具合集</p>
 
     <div class="func-container">
+        <!-- 摩斯电码生成器 -->
         <div class="func-module">
-            <div class="card-icon icon-morse"><i class="fas fa-code"></i></div>
+            <div class="card-icon icon-morse">
+                <i class="fas fa-code"></i>
+            </div>
             <h2>摩斯电码生成器</h2>
             <a href="morse-code-generator.html" class="func-btn morse-btn">打开摩斯电码生成器</a>
         </div>
+
+        <!-- 讯飞星火AI助手 -->
         <div class="func-module">
-            <div class="card-icon icon-ai"><i class="fas fa-robot"></i></div>
+            <div class="card-icon icon-ai">
+                <i class="fas fa-robot"></i>
+            </div>
             <h2>讯飞星火AI助手</h2>
             <a href="ai-chat.html" class="func-btn ai-btn">打开AI智能聊天助手</a>
+        </div>
+
+        <!-- 澳大利亚英语课文 -->
+        <div class="func-module">
+            <div class="card-icon icon-au">
+                <i class="fas fa-globe-asia"></i>
+            </div>
+            <h2>澳大利亚英语课文</h2>
+            <a href="https://donk7891.github.io/australia.html" class="func-btn au-btn">点击查看课文</a>
         </div>
     </div>
 
