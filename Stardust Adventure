@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星尘冒险 - 反转控制版</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a1a;
+            --text-light: #e0e0e0;
+            --accent-gold: #ffd700;
+            --accent-cyan: #00e5ff;
+            --accent-red: #ff4757;
+            --accent-green: #2ed573;
+            --panel-bg: rgba(20, 20, 40, 0.9);
+            --border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(30, 30, 80, 0.5) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 50%, rgba(30, 30, 80, 0.5) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 20%, rgba(40, 40, 100, 0.3) 0%, transparent 50%);
+        }
+
+        #game-container {
+            position: relative;
+            width: 960px;
+            max-width: 98vw;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow:
+                0 0 60px rgba(0, 0, 0, 0.7),
+                0 0 120px rgba(80, 60, 200, 0.15),
+                inset 0 0 40px rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border-color);
+            background: #000;
+            aspect-ratio: 16/9;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        #touch-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: none;
+            justify-content: space-between;
+            padding: 12px 20px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .touch-btn {
+            pointer-events: auto;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            transition: background 0.15s;
+            cursor: pointer;
+            -webkit-touch-callout: none;
+        }
+
+        .touch-btn:active {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .touch-left,
+        .touch-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .touch-jump {
+            background: rgba(255, 215, 0, 0.25);
+            border-color: rgba(255, 215, 0, 0.5);
+        }
+
+        @media (max-width: 768px) {
+            #game-container {
+                border-radius: 0;
+                max-width: 100vw;
+                aspect-ratio: auto;
+                height: 100vh;
+            }
+            #touch-controls {
+                display: flex;
+            }
+        }
+
+        @media (pointer: coarse) {
+            #touch-controls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="touch-controls">
+            <div class="touch-left">
+                <button class="touch-btn" id="btn-left">◀</button>
+                <button class="touch-btn" id="btn-right">▶</button>
+            </div>
+            <div class="touch-right">
+                <button class="touch-btn touch-jump" id="btn-jump">▲</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== 画布设置 ====================
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const GAME_WIDTH = 960;
+            const GAME_HEIGHT = 540;
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+
+            // ==================== 常量 ====================
+            const TILE_SIZE = 40;
+            const GRAVITY = 0.55;
+            const MAX_FALL_SPEED = 14;
+            const PLAYER_SPEED = 4.8;
+            const PLAYER_ACCEL = 0.35;
+            const PLAYER_FRICTION = 0.78;
+            const JUMP_FORCE = -11.5;
+            const DOUBLE_JUMP_FORCE = -9.5;
+            const COYOTE_TIME = 8;
+            const JUMP_BUFFER = 6;
+
+            // ==================== 游戏状态 ====================
+            const GameState = {
+                MENU: 'menu',
+                PLAYING: 'playing',
+                PAUSED: 'paused',
+                GAME_OVER: 'game_over',
+                VICTORY: 'victory',
+                LEVEL_TRANSITION: 'level_transition',
+            };
+
+            let gameState = GameState.MENU;
+            let currentLevel = 0;
+            let score = 0;
+            let lives = 3;
+            let totalCoins = 0;
+            let collectedCoinsInLevel = 0;
+            let transitionTimer = 0;
+            let menuSelection = 0;
+            let particles = [];
+            let floatingTexts = [];
+            let screenShake = 0;
+            let gameTime = 0;
+            let starField = [];
+            let audioCtx = null;
+            let soundEnabled = true;
+
+            // ==================== 输入系统 ====================
+            const keys = {};
+            const touchState = { left: false, right: false, jump: false };
+            let jumpPressed = false;
+            let jumpBuffered = 0;
+            let coyoteTimer = 0;
+            let canDoubleJump = false;
+
+            // ==================== 相机 ====================
+            const camera = {
+                x: 0,
+                y: 0,
+                targetX: 0,
+                targetY: 0,
+                shakeX: 0,
+                shakeY: 0,
+            };
+
+            // ==================== 粒子系统 ====================
+            class Particle {
+                constructor(x, y, vx, vy, size, color, life, gravity = 0, shrink = true) {
+                    this.x = x;
+                    this.y = y;
+                    this.vx = vx;
+                    this.vy = vy;
+                    this.size = size;
+                    this.color = color;
+                    this.life = life;
+                    this.maxLife = life;
+                    this.gravity = gravity;
+                    this.shrink = shrink;
+                    this.alpha = 1;
+                }
+
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vy += this.gravity;
+                    this.life--;
+                    this.alpha = this.life / this.maxLife;
+                    if (this.shrink) {
+                        this.size *= 0.97;
+                    }
+                    return this.life > 0 && this.alpha > 0.01;
+                }
+
+                draw(ctx) {
+                    ctx.globalAlpha = this.alpha;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, Math.max(0.5, this.size), 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+            }
+
+            function spawnParticles(x, y, count, color, speed, size, life, gravity = 0) {
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const vel = Math.random() * speed;
+                    particles.push(new Particle(
+                        x + (Math.random() - 0.5) * 10,
+                        y + (Math.random() - 0.5) * 10,
+                        Math.cos(angle) * vel,
+                        Math.sin(angle) * vel - speed * 0.3,
+                        Math.random() * size + size * 0.3,
+                        color,
+                        Math.floor(Math.random() * life) + life * 0.5,
+                        gravity
+                    ));
+                }
+            }
+
+            function spawnCoinParticles(x, y) {
+                const colors = ['#ffd700', '#ffec8b', '#ffb90f', '#fff8dc', '#ffd700'];
+                for (let i = 0; i < 18; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const vel = Math.random() * 4 + 1.5;
+                    particles.push(new Particle(
+                        x, y,
+                        Math.cos(angle) * vel,
+                        Math.sin(angle) * vel - 3,
+                        Math.random() * 4 + 2,
+                        colors[Math.floor(Math.random() * colors.length)],
+                        Math.floor(Math.random() * 20) + 15,
+                        0.12
+                    ));
+                }
+            }
+
+            function spawnDustParticles(x, y, count = 6) {
+                for (let i = 0; i < count; i++) {
+                    particles.push(new Particle(
+                        x + (Math.random() - 0.5) * 12,
+                        y,
+                        (Math.random() - 0.5) * 2.5,
+                        -Math.random() * 1.8 - 0.3,
+                        Math.random() * 3.5 + 1.5,
+                        'rgba(180, 170, 150, 0.8)',
+                        Math.floor(Math.random() * 12) + 8,
+                        -0.02
+                    ));
+                }
+            }
+
+            // ==================== 浮动文字 ====================
+            class FloatingText {
+                constructor(x, y, text, color, size = 18) {
+                    this.x = x;
+                    this.y = y;
+                    this.text = text;
+                    this.color = color;
+                    this.size = size;
+                    this.life = 50;
+                    this.maxLife = 50;
+                    this.vy = -2.2;
+                }
+
+                update() {
+                    this.y += this.vy;
+                    this.vy *= 0.95;
+                    this.life--;
+                    return this.life > 0;
+                }
+
+                draw(ctx) {
+                    const alpha = this.life / this.maxLife;
+                    ctx.globalAlpha = alpha;
+                    ctx.fillStyle = this.color;
+                    ctx.font = `bold ${this.size}px 'Segoe UI', sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+                    ctx.shadowBlur = 5;
+                    ctx.fillText(this.text, this.x, this.y);
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1;
+                }
+            }
+
+            function addFloatingText(x, y, text, color, size = 18) {
+                floatingTexts.push(new FloatingText(x, y, text, color, size));
+            }
+
+            // ==================== 星空背景 ====================
+            function initStarField() {
+                starField = [];
+                for (let i = 0; i < 200; i++) {
+                    starField.push({
+                        x: Math.random() * GAME_WIDTH,
+                        y: Math.random() * GAME_HEIGHT,
+                        size: Math.random() * 2.5 + 0.5,
+                        speed: Math.random() * 0.3 + 0.05,
+                        brightness: Math.random() * 0.7 + 0.3,
+                        twinkleSpeed: Math.random() * 0.03 + 0.01,
+                        phase: Math.random() * Math.PI * 2,
+                    });
+                }
+            }
+
+            // ==================== 音效系统 ====================
+            function initAudio() {
+                try {
+                    audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    audioCtx = null;
+                    soundEnabled = false;
+                }
+            }
+
+            function playSound(type) {
+                if (!soundEnabled || !audioCtx) return;
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    const now = audioCtx.currentTime;
+
+                    switch (type) {
+                        case 'jump':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(280, now);
+                            osc.frequency.exponentialRampToValueAtTime(520, now + 0.12);
+                            gain.gain.setValueAtTime(0.12, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                            osc.start(now);
+                            osc.stop(now + 0.15);
+                            break;
+                        case 'doubleJump':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(380, now);
+                            osc.frequency.exponentialRampToValueAtTime(680, now + 0.12);
+                            gain.gain.setValueAtTime(0.13, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                            osc.start(now);
+                            osc.stop(now + 0.15);
+                            break;
+                        case 'coin':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(880, now);
+                            osc.frequency.setValueAtTime(1100, now + 0.06);
+                            gain.gain.setValueAtTime(0.1, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                            osc.start(now);
+                            osc.stop(now + 0.18);
+                            break;
+                        case 'gem':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(660, now);
+                            osc.frequency.exponentialRampToValueAtTime(1320, now + 0.2);
+                            gain.gain.setValueAtTime(0.12, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                            osc.start(now);
+                            osc.stop(now + 0.25);
+                            break;
+                        case 'hurt':
+                            osc.type = 'sawtooth';
+                            osc.frequency.setValueAtTime(200, now);
+                            osc.frequency.exponentialRampToValueAtTime(60, now + 0.3);
+                            gain.gain.setValueAtTime(0.15, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                            osc.start(now);
+                            osc.stop(now + 0.3);
+                            break;
+                        case 'enemyDefeat':
+                            osc.type = 'square';
+                            osc.frequency.setValueAtTime(180, now);
+                            osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                            gain.gain.setValueAtTime(0.1, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                            osc.start(now);
+                            osc.stop(now + 0.15);
+                            break;
+                        case 'checkpoint':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(520, now);
+                            osc.frequency.setValueAtTime(660, now + 0.1);
+                            osc.frequency.setValueAtTime(780, now + 0.2);
+                            gain.gain.setValueAtTime(0.11, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                            osc.start(now);
+                            osc.stop(now + 0.3);
+                            break;
+                        case 'victory':
+                            const notes = [523, 659, 784, 1047];
+                            notes.forEach((freq, i) => {
+                                const o2 = audioCtx.createOscillator();
+                                const g2 = audioCtx.createGain();
+                                o2.connect(g2);
+                                g2.connect(audioCtx.destination);
+                                o2.type = 'sine';
+                                o2.frequency.setValueAtTime(freq, now + i * 0.12);
+                                g2.gain.setValueAtTime(0.1, now + i * 0.12);
+                                g2.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3);
+                                o2.start(now + i * 0.12);
+                                o2.stop(now + i * 0.12 + 0.3);
+                            });
+                            break;
+                        case 'gameOver':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(400, now);
+                            osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                            gain.gain.setValueAtTime(0.14, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                            osc.start(now);
+                            osc.stop(now + 0.5);
+                            break;
+                        case 'shoot':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(600, now);
+                            osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+                            gain.gain.setValueAtTime(0.08, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                            osc.start(now);
+                            osc.stop(now + 0.1);
+                            break;
+                        case 'platform':
+                            osc.type = 'sine';
+                            osc.frequency.setValueAtTime(200, now);
+                            osc.frequency.exponentialRampToValueAtTime(150, now + 0.1);
+                            gain.gain.setValueAtTime(0.06, now);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                            osc.start(now);
+                            osc.stop(now + 0.1);
+                            break;
+                    }
+                } catch (e) {
+                    // 静默处理音频错误
+                }
+            }
+
+            // ==================== 关卡定义 ====================
+            const levels = [];
+
+            function createLevels() {
+                const levelData = [
+                    {
+                        name: '草原启程',
+                        width: 100,
+                        tiles: [],
+                        spawnX: 3,
+                        spawnY: 10,
+                        theme: 'grass',
+                        bgGradient: ['#1a1a3a', '#0d1b2a'],
+                        platformColor: '#3d7a3d',
+                        platformTopColor: '#5cb85c',
+                        accentColor: '#7ecb7e',
+                    },
+                    {
+                        name: '幽暗洞穴',
+                        width: 110,
+                        tiles: [],
+                        spawnX: 3,
+                        spawnY: 10,
+                        theme: 'cave',
+                        bgGradient: ['#0a0a15', '#1a0a2a'],
+                        platformColor: '#4a4a6a',
+                        platformTopColor: '#6a6a8a',
+                        accentColor: '#8a7ab0',
+                    },
+                    {
+                        name: '云端之巅',
+                        width: 120,
+                        tiles: [],
+                        spawnX: 3,
+                        spawnY: 10,
+                        theme: 'sky',
+                        bgGradient: ['#1a2a5a', '#0a1535'],
+                        platformColor: '#5a7aaa',
+                        platformTopColor: '#8ab0d0',
+                        accentColor: '#b0d8f0',
+                    },
+                ];
+
+                const l1 = levelData[0];
+                l1.tiles = generateLevel1(l1.width);
+                const l2 = levelData[1];
+                l2.tiles = generateLevel2(l2.width);
+                const l3 = levelData[2];
+                l3.tiles = generateLevel3(l3.width);
+
+                levels.push(l1, l2, l3);
+            }
+
+            function generateLevel1(width) {
+                const tiles = Array.from({ length: width }, () => Array(13).fill(0));
+                for (let x = 0; x < width; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                tiles[3][10] = 0;
+                for (let x = 5; x < 10; x++) tiles[x][8] = 3;
+                for (let x = 12; x < 15; x++) tiles[x][7] = 3;
+                tiles[11][8] = 1;
+                tiles[12][8] = 1;
+                tiles[13][8] = 1;
+                tiles[14][7] = 1;
+                tiles[15][7] = 1;
+                tiles[16][7] = 1;
+                tiles[17][9] = 2;
+                tiles[18][9] = 2;
+                tiles[14][6] = 3;
+                tiles[15][6] = 3;
+                tiles[20][9] = 4;
+                tiles[21][9] = 4;
+                tiles[23][7] = 1;
+                tiles[24][7] = 1;
+                tiles[25][7] = 1;
+                tiles[26][6] = 1;
+                tiles[27][6] = 1;
+                tiles[25][5] = 3;
+                tiles[26][5] = 3;
+                tiles[29][9] = 2;
+                tiles[30][9] = 2;
+                tiles[31][9] = 2;
+                tiles[33][8] = 7;
+                tiles[34][8] = 7;
+                tiles[36][6] = 5;
+                tiles[38][7] = 1;
+                tiles[39][7] = 1;
+                tiles[40][7] = 1;
+                tiles[39][5] = 3;
+                tiles[40][5] = 3;
+                tiles[41][5] = 3;
+                tiles[43][9] = 6;
+                tiles[45][9] = 2;
+                tiles[46][9] = 2;
+                tiles[48][9] = 4;
+                tiles[49][9] = 4;
+                tiles[51][8] = 1;
+                tiles[52][8] = 1;
+                tiles[53][7] = 1;
+                tiles[54][7] = 1;
+                tiles[55][6] = 1;
+                tiles[56][6] = 1;
+                tiles[53][5] = 3;
+                tiles[54][5] = 3;
+                tiles[55][4] = 3;
+                tiles[58][5] = 5;
+                tiles[59][5] = 5;
+                tiles[61][7] = 1;
+                tiles[62][7] = 1;
+                tiles[63][7] = 1;
+                tiles[64][7] = 1;
+                tiles[66][6] = 7;
+                tiles[67][6] = 7;
+                tiles[69][9] = 4;
+                tiles[70][9] = 4;
+                tiles[71][9] = 4;
+                tiles[73][5] = 8;
+                tiles[75][9] = 2;
+                tiles[76][9] = 2;
+                tiles[77][9] = 2;
+                tiles[79][6] = 1;
+                tiles[80][6] = 1;
+                tiles[81][5] = 1;
+                tiles[82][5] = 1;
+                tiles[81][3] = 3;
+                tiles[82][3] = 3;
+                tiles[84][4] = 5;
+                tiles[86][7] = 1;
+                tiles[87][7] = 1;
+                tiles[88][7] = 1;
+                tiles[89][7] = 1;
+                tiles[90][7] = 1;
+                tiles[92][9] = 9;
+                tiles[92][8] = 9;
+                tiles[92][7] = 9;
+                tiles[89][5] = 3;
+                tiles[90][5] = 3;
+                tiles[91][5] = 3;
+                for (let x = 93; x < width; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                return tiles;
+            }
+
+            function generateLevel2(width) {
+                const tiles = Array.from({ length: width }, () => Array(13).fill(0));
+                for (let x = 0; x < width; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                tiles[3][10] = 0;
+                for (let x = 4; x < 8; x++) tiles[x][7] = 3;
+                tiles[5][6] = 3;
+                tiles[6][6] = 3;
+                tiles[9][8] = 1;
+                tiles[10][8] = 1;
+                tiles[11][8] = 1;
+                tiles[13][9] = 2;
+                tiles[14][9] = 2;
+                tiles[16][9] = 4;
+                tiles[17][9] = 4;
+                tiles[16][7] = 3;
+                tiles[17][7] = 3;
+                tiles[20][7] = 7;
+                tiles[21][7] = 7;
+                tiles[23][5] = 5;
+                tiles[24][5] = 5;
+                tiles[26][9] = 2;
+                tiles[27][9] = 2;
+                tiles[28][9] = 2;
+                tiles[30][6] = 1;
+                tiles[31][6] = 1;
+                tiles[32][5] = 1;
+                tiles[33][5] = 1;
+                tiles[31][3] = 3;
+                tiles[32][3] = 3;
+                tiles[33][3] = 3;
+                tiles[35][9] = 6;
+                tiles[37][9] = 4;
+                tiles[38][9] = 4;
+                tiles[39][9] = 4;
+                tiles[41][7] = 1;
+                tiles[42][7] = 1;
+                tiles[43][7] = 1;
+                tiles[44][6] = 1;
+                tiles[45][6] = 1;
+                tiles[43][4] = 5;
+                tiles[44][3] = 3;
+                tiles[45][3] = 3;
+                tiles[47][9] = 2;
+                tiles[48][9] = 2;
+                tiles[50][6] = 7;
+                tiles[51][6] = 7;
+                tiles[52][3] = 8;
+                tiles[54][9] = 4;
+                tiles[55][9] = 4;
+                tiles[57][7] = 1;
+                tiles[58][7] = 1;
+                tiles[59][7] = 1;
+                tiles[60][6] = 1;
+                tiles[61][6] = 1;
+                tiles[62][5] = 1;
+                tiles[63][5] = 1;
+                tiles[60][3] = 3;
+                tiles[61][3] = 3;
+                tiles[62][2] = 3;
+                tiles[63][2] = 3;
+                tiles[65][4] = 5;
+                tiles[66][4] = 5;
+                tiles[67][4] = 5;
+                tiles[69][9] = 2;
+                tiles[70][9] = 2;
+                tiles[71][9] = 2;
+                tiles[73][6] = 1;
+                tiles[74][6] = 1;
+                tiles[75][5] = 1;
+                tiles[76][5] = 1;
+                tiles[77][5] = 1;
+                tiles[79][9] = 4;
+                tiles[80][9] = 4;
+                tiles[82][5] = 7;
+                tiles[83][5] = 7;
+                tiles[82][2] = 3;
+                tiles[83][2] = 3;
+                tiles[85][7] = 1;
+                tiles[86][7] = 1;
+                tiles[87][7] = 1;
+                tiles[88][7] = 1;
+                tiles[89][7] = 1;
+                tiles[90][7] = 1;
+                tiles[92][9] = 9;
+                tiles[92][8] = 9;
+                tiles[92][7] = 9;
+                for (let x = 93; x < width; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                return tiles;
+            }
+
+            function generateLevel3(width) {
+                const tiles = Array.from({ length: width }, () => Array(13).fill(0));
+                for (let x = 0; x < 20; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                for (let x = 25; x < 35; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                for (let x = 40; x < 55; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                for (let x = 60; x < 75; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                for (let x = 80; x < width; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                tiles[3][10] = 0;
+                for (let x = 5; x < 12; x++) {
+                    tiles[x][6] = 1;
+                }
+                for (let x = 6; x < 10; x++) tiles[x][4] = 3;
+                tiles[9][3] = 5;
+                tiles[14][6] = 1;
+                tiles[15][6] = 1;
+                tiles[16][5] = 1;
+                tiles[17][5] = 1;
+                tiles[18][5] = 1;
+                tiles[20][4] = 7;
+                tiles[21][4] = 7;
+                tiles[16][2] = 3;
+                tiles[17][2] = 3;
+                tiles[18][2] = 3;
+                tiles[26][9] = 4;
+                tiles[27][9] = 4;
+                tiles[28][9] = 4;
+                tiles[30][5] = 1;
+                tiles[31][5] = 1;
+                tiles[32][4] = 1;
+                tiles[33][4] = 1;
+                tiles[33][9] = 6;
+                tiles[31][2] = 5;
+                tiles[32][2] = 5;
+                tiles[33][1] = 8;
+                tiles[36][6] = 1;
+                tiles[37][6] = 1;
+                tiles[38][6] = 1;
+                tiles[39][5] = 1;
+                tiles[40][5] = 1;
+                tiles[38][3] = 3;
+                tiles[39][3] = 3;
+                tiles[40][3] = 3;
+                tiles[42][9] = 2;
+                tiles[43][9] = 2;
+                tiles[44][9] = 2;
+                tiles[46][5] = 7;
+                tiles[47][5] = 7;
+                tiles[50][9] = 4;
+                tiles[51][9] = 4;
+                tiles[52][9] = 4;
+                tiles[53][9] = 4;
+                tiles[55][6] = 1;
+                tiles[56][6] = 1;
+                tiles[57][5] = 1;
+                tiles[58][5] = 1;
+                tiles[59][4] = 1;
+                tiles[60][4] = 1;
+                tiles[57][2] = 3;
+                tiles[58][2] = 3;
+                tiles[59][1] = 3;
+                tiles[60][1] = 3;
+                tiles[62][3] = 5;
+                tiles[63][3] = 5;
+                tiles[64][3] = 5;
+                tiles[66][9] = 2;
+                tiles[67][9] = 2;
+                tiles[69][5] = 1;
+                tiles[70][5] = 1;
+                tiles[71][4] = 1;
+                tiles[72][4] = 1;
+                tiles[73][4] = 1;
+                tiles[75][9] = 4;
+                tiles[76][9] = 4;
+                tiles[77][9] = 4;
+                tiles[78][9] = 4;
+                tiles[80][4] = 7;
+                tiles[81][4] = 7;
+                tiles[82][3] = 7;
+                tiles[83][3] = 7;
+                tiles[85][6] = 1;
+                tiles[86][6] = 1;
+                tiles[87][6] = 1;
+                tiles[88][6] = 1;
+                tiles[89][6] = 1;
+                tiles[90][6] = 1;
+                tiles[92][9] = 9;
+                tiles[92][8] = 9;
+                tiles[92][7] = 9;
+                for (let x = 93; x < width; x++) {
+                    for (let y = 10; y < 13; y++) {
+                        tiles[x][y] = 1;
+                    }
+                }
+                return tiles;
+            }
+
+            // ==================== 游戏对象 ====================
+            class Player {
+                constructor(x, y) {
+                    this.x = x * TILE_SIZE + TILE_SIZE / 2;
+                    this.y = y * TILE_SIZE;
+                    this.width = 24;
+                    this.height = 32;
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.onGround = false;
+                    this.canDoubleJump = false;
+                    this.facing = 1;
+                    this.walkCycle = 0;
+                    this.isMoving = false;
+                    this.checkpointX = this.x;
+                    this.checkpointY = this.y;
+                    this.invincible = 0;
+                    this.trail = [];
+                    this.animTimer = 0;
+                    this.squash = 1;
+                }
+
+                update() {
+                    let moveX = 0;
+                    if (keys['ArrowLeft'] || keys['KeyA'] || touchState.left) moveX = -1;
+                    if (keys['ArrowRight'] || keys['KeyD'] || touchState.right) moveX = 1;
+
+                    // ★★★ 新增特性：在地面上时反转左右控制 ★★★
+                    // 根据用户需求：在地上按左往右，按右往左；浮空时正常
+                    if (this.onGround) {
+                        moveX *= -1;
+                    }
+
+                    if (jumpPressed || keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchState.jump) {
+                        if (jumpBuffered === 0) {
+                            jumpBuffered = JUMP_BUFFER;
+                        }
+                    }
+                    if (jumpBuffered > 0) jumpBuffered--;
+
+                    if (moveX !== 0) {
+                        this.vx += moveX * PLAYER_ACCEL;
+                        this.facing = moveX;
+                        this.isMoving = true;
+                    } else {
+                        this.vx *= PLAYER_FRICTION;
+                        this.isMoving = false;
+                    }
+                    this.vx = Math.max(-PLAYER_SPEED, Math.min(PLAYER_SPEED, this.vx));
+
+                    if (this.onGround) {
+                        coyoteTimer = COYOTE_TIME;
+                        this.canDoubleJump = true;
+                    } else if (coyoteTimer > 0) {
+                        coyoteTimer--;
+                    }
+
+                    if (jumpBuffered > 0 && coyoteTimer > 0) {
+                        this.vy = JUMP_FORCE;
+                        this.onGround = false;
+                        coyoteTimer = 0;
+                        jumpBuffered = 0;
+                        this.squash = 0.6;
+                        spawnDustParticles(this.x, this.y + this.height / 2);
+                        playSound('jump');
+                    } else if (jumpBuffered > 0 && this.canDoubleJump && !this.onGround) {
+                        this.vy = DOUBLE_JUMP_FORCE;
+                        this.canDoubleJump = false;
+                        jumpBuffered = 0;
+                        this.squash = 0.7;
+                        spawnParticles(this.x, this.y + this.height / 2, 8, '#00e5ff', 2.5, 3, 15, -0.05);
+                        playSound('doubleJump');
+                    }
+
+                    this.vy += GRAVITY;
+                    this.vy = Math.min(this.vy, MAX_FALL_SPEED);
+
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    if (this.isMoving && this.onGround) {
+                        this.walkCycle += 0.15;
+                        this.animTimer++;
+                    } else if (this.onGround) {
+                        this.walkCycle *= 0.8;
+                    }
+
+                    if (this.invincible > 0) this.invincible--;
+
+                    this.squash += (1 - this.squash) * 0.15;
+
+                    if (this.vy < -2 || Math.abs(this.vx) > 3) {
+                        this.trail.push({ x: this.x, y: this.y + this.height / 2, life: 20, color: 'rgba(120,200,255,0.6)' });
+                    }
+                    this.trail = this.trail.filter(t => {
+                        t.life--;
+                        t.y += 0.3;
+                        return t.life > 0;
+                    });
+
+                    if (this.y > GAME_HEIGHT + 100) {
+                        this.die();
+                    }
+
+                    if (this.x < TILE_SIZE) this.x = TILE_SIZE;
+                    if (this.x > (levels[currentLevel].width - 1) * TILE_SIZE) {
+                        this.x = (levels[currentLevel].width - 1) * TILE_SIZE;
+                    }
+                }
+
+                die() {
+                    spawnParticles(this.x, this.y + this.height / 2, 25, '#ff4757', 4, 4, 25, 0.15);
+                    lives--;
+                    playSound('hurt');
+                    if (lives <= 0) {
+                        gameState = GameState.GAME_OVER;
+                        playSound('gameOver');
+                    } else {
+                        this.respawn();
+                    }
+                    screenShake = 12;
+                }
+
+                respawn() {
+                    this.x = this.checkpointX;
+                    this.y = this.checkpointY - TILE_SIZE;
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.invincible = 60;
+                    this.canDoubleJump = true;
+                }
+
+                draw(ctx) {
+                    this.trail.forEach(t => {
+                        ctx.globalAlpha = t.life / 20 * 0.4;
+                        ctx.fillStyle = t.color;
+                        ctx.beginPath();
+                        ctx.arc(t.x, t.y, 8, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    ctx.globalAlpha = 1;
+
+                    if (this.invincible > 0 && Math.floor(this.invincible / 4) % 2 === 0) {
+                        ctx.globalAlpha = 0.5;
+                    }
+
+                    const sx = this.x - this.width / 2;
+                    const sy = this.y - this.height;
+                    const squashScale = this.squash;
+                    const centerX = this.x;
+                    const centerY = this.y;
+
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.scale(1 / squashScale, squashScale);
+                    ctx.translate(-centerX, -centerY);
+
+                    const bodyGradient = ctx.createLinearGradient(sx, sy, sx, sy + this.height);
+                    bodyGradient.addColorStop(0, '#6ab0ff');
+                    bodyGradient.addColorStop(0.5, '#3d7ad9');
+                    bodyGradient.addColorStop(1, '#2a5aa9');
+                    ctx.fillStyle = bodyGradient;
+                    ctx.beginPath();
+                    ctx.roundRect(sx, sy, this.width, this.height, 6);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    const eyeY = sy + 10;
+                    const eyeOffset = this.facing > 0 ? 5 : -5;
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(this.x + eyeOffset - 3, eyeY, 5, 0, Math.PI * 2);
+                    ctx.arc(this.x + eyeOffset + 5, eyeY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#1a1a3a';
+                    ctx.beginPath();
+                    ctx.arc(this.x + eyeOffset - 2 + this.facing * 1.5, eyeY + 1, 2.5, 0, Math.PI * 2);
+                    ctx.arc(this.x + eyeOffset + 6 + this.facing * 1.5, eyeY + 1, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#1a1a3a';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(this.x + eyeOffset + 1, eyeY + 6, 4, 0.1, Math.PI - 0.1);
+                    ctx.stroke();
+
+                    const footOffset = Math.sin(this.walkCycle) * 4;
+                    ctx.fillStyle = '#2a4a7a';
+                    ctx.fillRect(sx + 3, sy + this.height - 3, 7, 3);
+                    ctx.fillRect(sx + this.width - 10, sy + this.height - 3 + footOffset * 0.5, 7, 3);
+
+                    ctx.restore();
+                    ctx.globalAlpha = 1;
+
+                    if (this.invincible > 0) {
+                        ctx.globalAlpha = 0.3 * (this.invincible / 60);
+                        const glow = ctx.createRadialGradient(this.x, this.y, 5, this.x, this.y, 30);
+                        glow.addColorStop(0, 'rgba(255,255,255,0.8)');
+                        glow.addColorStop(1, 'rgba(255,255,255,0)');
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, 30, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                }
+
+                getBounds() {
+                    return {
+                        x: this.x - this.width / 2,
+                        y: this.y - this.height,
+                        width: this.width,
+                        height: this.height,
+                    };
+                }
+            }
+
+            class Enemy {
+                constructor(x, y, type) {
+                    this.x = x * TILE_SIZE + TILE_SIZE / 2;
+                    this.y = y * TILE_SIZE - 5;
+                    this.type = type;
+                    this.width = type === 'flying' ? 26 : 28;
+                    this.height = type === 'flying' ? 22 : 26;
+                    this.vx = type === 'flying' ? 1.8 : 1.2;
+                    this.vy = 0;
+                    this.startX = this.x;
+                    this.startY = this.y;
+                    this.patrolRange = TILE_SIZE * 2.5;
+                    this.walkCycle = 0;
+                    this.alive = true;
+                    this.phase = Math.random() * Math.PI * 2;
+                    this.squashTimer = 0;
+                }
+
+                update() {
+                    if (!this.alive) return;
+                    this.walkCycle += 0.12;
+                    this.phase += 0.03;
+
+                    if (this.type === 'patrol') {
+                        this.x += this.vx;
+                        if (Math.abs(this.x - this.startX) > this.patrolRange) {
+                            this.vx *= -1;
+                            this.facing = this.vx > 0 ? 1 : -1;
+                        }
+                    } else {
+                        this.x += this.vx;
+                        this.y = this.startY + Math.sin(this.phase * 2) * 30;
+                        if (Math.abs(this.x - this.startX) > this.patrolRange * 1.5) {
+                            this.vx *= -1;
+                        }
+                    }
+
+                    const margin = TILE_SIZE * 2;
+                    if (this.x < margin) this.vx = Math.abs(this.vx);
+                    if (this.x > (levels[currentLevel].width * TILE_SIZE) - margin) this.vx = -Math.abs(this.vx);
+                }
+
+                draw(ctx) {
+                    if (!this.alive) return;
+                    const sx = this.x - this.width / 2;
+                    const sy = this.y - this.height;
+                    const squash = this.squashTimer > 0 ? 0.7 : 1;
+                    this.squashTimer = Math.max(0, this.squashTimer - 1);
+
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.scale(1 / squash, squash);
+                    ctx.translate(-this.x, -this.y);
+
+                    if (this.type === 'patrol') {
+                        const grad = ctx.createRadialGradient(sx + 5, sy + 5, 2, this.x, this.y, 18);
+                        grad.addColorStop(0, '#ff6b6b');
+                        grad.addColorStop(1, '#cc3344');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.ellipse(this.x, this.y - 3, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(this.x - 5, this.y - 8, 4, 0, Math.PI * 2);
+                        ctx.arc(this.x + 5, this.y - 8, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#1a1a3a';
+                        ctx.beginPath();
+                        ctx.arc(this.x - 4 + (this.vx > 0 ? 1 : -1), this.y - 7, 2, 0, Math.PI * 2);
+                        ctx.arc(this.x + 6 + (this.vx > 0 ? 1 : -1), this.y - 7, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.strokeStyle = '#1a1a3a';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y - 3, 5, 0.2, Math.PI - 0.2);
+                        ctx.stroke();
+                    } else {
+                        const wingFlap = Math.sin(this.walkCycle * 2) * 6;
+                        const grad = ctx.createRadialGradient(sx + 4, sy + 4, 2, this.x, this.y, 16);
+                        grad.addColorStop(0, '#a06bd9');
+                        grad.addColorStop(1, '#6a3a9a');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.ellipse(this.x, this.y, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = 'rgba(160,100,200,0.6)';
+                        ctx.beginPath();
+                        ctx.moveTo(this.x - 8, this.y - 4);
+                        ctx.quadraticCurveTo(this.x - 20, this.y - 14 + wingFlap, this.x - 16, this.y + 2);
+                        ctx.quadraticCurveTo(this.x - 10, this.y - 2, this.x - 8, this.y + 2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + 8, this.y - 4);
+                        ctx.quadraticCurveTo(this.x + 20, this.y - 14 + wingFlap, this.x + 16, this.y + 2);
+                        ctx.quadraticCurveTo(this.x + 10, this.y - 2, this.x + 8, this.y + 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(this.x - 4, this.y - 4, 3, 0, Math.PI * 2);
+                        ctx.arc(this.x + 4, this.y - 4, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#1a1a3a';
+                        ctx.beginPath();
+                        ctx.arc(this.x - 3 + (this.vx > 0 ? 1 : -1), this.y - 3, 1.5, 0, Math.PI * 2);
+                        ctx.arc(this.x + 5 + (this.vx > 0 ? 1 : -1), this.y - 3, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                }
+
+                getBounds() {
+                    return {
+                        x: this.x - this.width / 2,
+                        y: this.y - this.height,
+                        width: this.width,
+                        height: this.height,
+                    };
+                }
+            }
+
+            class MovingPlatform {
+                constructor(x, y, rangeX, rangeY, speed) {
+                    this.x = x * TILE_SIZE + TILE_SIZE / 2;
+                    this.y = y * TILE_SIZE + TILE_SIZE / 2;
+                    this.width = TILE_SIZE * 2;
+                    this.height = 16;
+                    this.startX = this.x;
+                    this.startY = this.y;
+                    this.rangeX = rangeX || 0;
+                    this.rangeY = rangeY || TILE_SIZE * 2;
+                    this.speed = speed || 0.8;
+                    this.phase = Math.random() * Math.PI * 2;
+                    this.prevX = this.x;
+                    this.prevY = this.y;
+                    this.dx = 0;
+                    this.dy = 0;
+                }
+
+                update() {
+                    this.prevX = this.x;
+                    this.prevY = this.y;
+                    this.phase += this.speed * 0.03;
+                    if (this.rangeX > 0) {
+                        this.x = this.startX + Math.sin(this.phase) * this.rangeX;
+                    }
+                    if (this.rangeY > 0) {
+                        this.y = this.startY + Math.sin(this.phase) * this.rangeY;
+                    }
+                    this.dx = this.x - this.prevX;
+                    this.dy = this.y - this.prevY;
+                }
+
+                draw(ctx) {
+                    const sx = this.x - this.width / 2;
+                    const sy = this.y - this.height / 2;
+                    const grad = ctx.createLinearGradient(sx, sy, sx, sy + this.height);
+                    const level = levels[currentLevel];
+                    grad.addColorStop(0, level.platformTopColor);
+                    grad.addColorStop(1, level.platformColor);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.roundRect(sx, sy, this.width, this.height, 5);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(sx + 5, sy + 4, this.width - 10, 3);
+                    ctx.globalAlpha = 0.3;
+                    const glow = ctx.createRadialGradient(this.x, this.y, 2, this.x, this.y, 25);
+                    glow.addColorStop(0, 'rgba(255,255,255,0.6)');
+                    glow.addColorStop(1, 'rgba(255,255,255,0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+
+                getBounds() {
+                    return {
+                        x: this.x - this.width / 2,
+                        y: this.y - this.height / 2,
+                        width: this.width,
+                        height: this.height,
+                    };
+                }
+            }
+
+            // ==================== 游戏初始化 ====================
+            let player;
+            let enemies = [];
+            let movingPlatforms = [];
+            let coinAnimation = 0;
+
+            function initLevel() {
+                const level = levels[currentLevel];
+                player = new Player(level.spawnX, level.spawnY);
+                player.checkpointX = level.spawnX * TILE_SIZE + TILE_SIZE / 2;
+                player.checkpointY = level.spawnY * TILE_SIZE;
+                enemies = [];
+                movingPlatforms = [];
+                particles = [];
+                floatingTexts = [];
+                collectedCoinsInLevel = 0;
+
+                for (let x = 0; x < level.width; x++) {
+                    for (let y = 0; y < 13; y++) {
+                        const tile = level.tiles[x][y];
+                        if (tile === 4) {
+                            enemies.push(new Enemy(x, y, 'patrol'));
+                        } else if (tile === 5) {
+                            enemies.push(new Enemy(x, y, 'flying'));
+                        } else if (tile === 7) {
+                            movingPlatforms.push(new MovingPlatform(x, y, 0, TILE_SIZE * 1.8, 1.2));
+                        }
+                    }
+                }
+
+                camera.x = player.x - GAME_WIDTH / 2;
+                camera.y = player.y - GAME_HEIGHT / 2;
+                camera.targetX = camera.x;
+                camera.targetY = camera.y;
+            }
+
+            function resetGame() {
+                lives = 3;
+                score = 0;
+                totalCoins = 0;
+                currentLevel = 0;
+                initLevel();
+                gameState = GameState.PLAYING;
+            }
+
+            function nextLevel() {
+                if (currentLevel < levels.length - 1) {
+                    currentLevel++;
+                    transitionTimer = 60;
+                    gameState = GameState.LEVEL_TRANSITION;
+                    playSound('victory');
+                } else {
+                    gameState = GameState.VICTORY;
+                    playSound('victory');
+                }
+            }
+
+            // ==================== 碰撞检测 ====================
+            function rectIntersect(a, b) {
+                return a.x < b.x + b.width &&
+                    a.x + a.width > b.x &&
+                    a.y < b.y + b.height &&
+                    a.y + a.height > b.y;
+            }
+
+            function getTileAt(x, y) {
+                const level = levels[currentLevel];
+                const tileX = Math.floor(x / TILE_SIZE);
+                const tileY = Math.floor(y / TILE_SIZE);
+                if (tileX < 0 || tileX >= level.width || tileY < 0 || tileY >= 13) return 1;
+                return level.tiles[tileX][tileY];
+            }
+
+            function setTileAt(x, y, val) {
+                const level = levels[currentLevel];
+                const tileX = Math.floor(x / TILE_SIZE);
+                const tileY = Math.floor(y / TILE_SIZE);
+                if (tileX >= 0 && tileX < level.width && tileY >= 0 && tileY < 13) {
+                    level.tiles[tileX][tileY] = val;
+                }
+            }
+
+            function isSolid(tile) {
+                return tile === 1 || tile === 7;
+            }
+
+            function handleTileCollisions() {
+                const bounds = player.getBounds();
+                const level = levels[currentLevel];
+
+                const horizontalCheck = {
+                    x: player.x + player.vx,
+                    y: player.y,
+                    width: player.width,
+                    height: player.height,
+                };
+
+                const leftTile = Math.floor((horizontalCheck.x) / TILE_SIZE);
+                const rightTile = Math.floor((horizontalCheck.x + horizontalCheck.width) / TILE_SIZE);
+                const topTile = Math.floor((horizontalCheck.y - horizontalCheck.height) / TILE_SIZE);
+                const bottomTile = Math.floor((horizontalCheck.y) / TILE_SIZE);
+
+                for (let tx = leftTile; tx <= rightTile; tx++) {
+                    for (let ty = topTile; ty <= bottomTile; ty++) {
+                        if (isSolid(getTileAt(tx * TILE_SIZE, ty * TILE_SIZE))) {
+                            const tileBounds = {
+                                x: tx * TILE_SIZE,
+                                y: ty * TILE_SIZE,
+                                width: TILE_SIZE,
+                                height: TILE_SIZE,
+                            };
+                            if (rectIntersect(horizontalCheck, tileBounds)) {
+                                if (player.vx > 0) {
+                                    player.x = tileBounds.x - player.width / 2;
+                                } else if (player.vx < 0) {
+                                    player.x = tileBounds.x + tileBounds.width + player.width / 2;
+                                }
+                                player.vx = 0;
+                            }
+                        }
+                    }
+                }
+
+                const verticalCheck = {
+                    x: player.x - player.width / 2,
+                    y: player.y + player.vy,
+                    width: player.width,
+                    height: player.height,
+                };
+
+                const wasOnGround = player.onGround;
+                player.onGround = false;
+
+                const vLeftTile = Math.floor((verticalCheck.x) / TILE_SIZE);
+                const vRightTile = Math.floor((verticalCheck.x + verticalCheck.width) / TILE_SIZE);
+                const vTopTile = Math.floor((verticalCheck.y - verticalCheck.height) / TILE_SIZE);
+                const vBottomTile = Math.floor((verticalCheck.y) / TILE_SIZE);
+
+                for (let tx = vLeftTile; tx <= vRightTile; tx++) {
+                    for (let ty = vTopTile; ty <= vBottomTile; ty++) {
+                        if (isSolid(getTileAt(tx * TILE_SIZE, ty * TILE_SIZE))) {
+                            const tileBounds = {
+                                x: tx * TILE_SIZE,
+                                y: ty * TILE_SIZE,
+                                width: TILE_SIZE,
+                                height: TILE_SIZE,
+                            };
+                            if (rectIntersect(verticalCheck, tileBounds)) {
+                                if (player.vy > 0) {
+                                    player.y = tileBounds.y;
+                                    player.vy = 0;
+                                    player.onGround = true;
+                                    if (!wasOnGround) {
+                                        spawnDustParticles(player.x, player.y + player.height / 2, 8);
+                                    }
+                                } else if (player.vy < 0) {
+                                    player.y = tileBounds.y + tileBounds.height + player.height;
+                                    player.vy = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            function handleTileEffects() {
+                const bounds = player.getBounds();
+                const level = levels[currentLevel];
+
+                const footTile = getTileAt(player.x, player.y + 3);
+                if (footTile === 2) {
+                    if (player.invincible <= 0) {
+                        player.die();
+                    }
+                }
+
+                const coinCheckTiles = [
+                    { x: Math.floor((player.x - 5) / TILE_SIZE), y: Math.floor((player.y - player.height / 2) / TILE_SIZE) },
+                    { x: Math.floor((player.x + 5) / TILE_SIZE), y: Math.floor((player.y - player.height / 2) / TILE_SIZE) },
+                    { x: Math.floor((player.x) / TILE_SIZE), y: Math.floor((player.y - player.height) / TILE_SIZE) },
+                    { x: Math.floor((player.x) / TILE_SIZE), y: Math.floor((player.y - player.height / 3) / TILE_SIZE) },
+                ];
+
+                for (const tc of coinCheckTiles) {
+                    if (tc.x >= 0 && tc.x < level.width && tc.y >= 0 && tc.y < 13) {
+                        if (level.tiles[tc.x][tc.y] === 3) {
+                            level.tiles[tc.x][tc.y] = 0;
+                            score += 100;
+                            totalCoins++;
+                            collectedCoinsInLevel++;
+                            spawnCoinParticles(tc.x * TILE_SIZE + TILE_SIZE / 2, tc.y * TILE_SIZE + TILE_SIZE / 2);
+                            addFloatingText(tc.x * TILE_SIZE + TILE_SIZE / 2, tc.y * TILE_SIZE, '+100', '#ffd700', 16);
+                            playSound('coin');
+                        } else if (level.tiles[tc.x][tc.y] === 8) {
+                            level.tiles[tc.x][tc.y] = 0;
+                            score += 500;
+                            spawnParticles(tc.x * TILE_SIZE + TILE_SIZE / 2, tc.y * TILE_SIZE + TILE_SIZE / 2, 30, '#00e5ff',
+                                5, 5, 30, 0.1);
+                            addFloatingText(tc.x * TILE_SIZE + TILE_SIZE / 2, tc.y * TILE_SIZE, '+500 宝石!', '#00e5ff', 22);
+                            playSound('gem');
+                        }
+                    }
+                }
+
+                const checkTile = getTileAt(player.x, player.y - 5);
+                if (checkTile === 6) {
+                    setTileAt(player.x, player.y - 5, 0);
+                    player.checkpointX = player.x;
+                    player.checkpointY = player.y;
+                    addFloatingText(player.x, player.y - 40, '检查点!', '#2ed573', 20);
+                    spawnParticles(player.x, player.y, 20, '#2ed573', 3.5, 4, 20, -0.05);
+                    playSound('checkpoint');
+                    score += 50;
+                }
+
+                const doorTile = getTileAt(player.x, player.y - 5);
+                const doorTile2 = getTileAt(player.x, player.y - 20);
+                if (doorTile === 9 || doorTile2 === 9) {
+                    score += 500;
+                    nextLevel();
+                }
+            }
+
+            function handleEnemyCollisions() {
+                const playerBounds = player.getBounds();
+                for (const enemy of enemies) {
+                    if (!enemy.alive) continue;
+                    const enemyBounds = enemy.getBounds();
+                    if (rectIntersect(playerBounds, enemyBounds)) {
+                        if (player.vy > 0 && player.y - player.height < enemy.y - enemy.height + 8) {
+                            enemy.alive = false;
+                            player.vy = -7;
+                            score += 200;
+                            spawnParticles(enemy.x, enemy.y, 20, '#ff6b6b', 3.5, 4, 20, 0.1);
+                            addFloatingText(enemy.x, enemy.y - 20, '+200', '#ff6b6b', 16);
+                            playSound('enemyDefeat');
+                        } else if (player.invincible <= 0) {
+                            player.die();
+                        }
+                    }
+                }
+            }
+
+            function handleMovingPlatforms() {
+                const playerBounds = player.getBounds();
+                for (const plat of movingPlatforms) {
+                    const platBounds = plat.getBounds();
+                    if (rectIntersect(playerBounds, platBounds) && player.vy >= 0) {
+                        const playerBottom = playerBounds.y + playerBounds.height;
+                        const platTop = platBounds.y;
+                        if (playerBottom - platTop < 20 && playerBottom > platTop - 5) {
+                            player.y = platTop;
+                            player.vy = 0;
+                            player.onGround = true;
+                            player.x += plat.dx;
+                            player.y += plat.dy;
+                            if (plat.dy !== 0 && plat.dx !== 0) {
+                                if (Math.abs(plat.dx) > 0.1 || Math.abs(plat.dy) > 0.1) {
+                                    playSound('platform');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ==================== 渲染系统 ====================
+            function drawBackground() {
+                const level = levels[currentLevel];
+                const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+                grad.addColorStop(0, level.bgGradient[0]);
+                grad.addColorStop(1, level.bgGradient[1]);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                starField.forEach(star => {
+                    const sx = (star.x - camera.x * 0.3) % GAME_WIDTH;
+                    const sy = (star.y - camera.y * 0.2) % GAME_HEIGHT;
+                    const drawX = sx < 0 ? sx + GAME_WIDTH : sx;
+                    const drawY = sy < 0 ? sy + GAME_HEIGHT : sy;
+                    const twinkle = Math.sin(gameTime * star.twinkleSpeed * 20 + star.phase) * 0.3 + 0.7;
+                    ctx.globalAlpha = star.brightness * twinkle;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(drawX, drawY, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+
+                const parallaxOffset = camera.x * 0.15;
+                ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                for (let i = 0; i < 12; i++) {
+                    const bx = ((i * 200 - parallaxOffset) % (GAME_WIDTH + 200)) - 100;
+                    const by = GAME_HEIGHT * 0.55 + Math.sin(i * 1.5) * 30;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 70 + Math.sin(i * 2) * 25, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            function drawTiles() {
+                const level = levels[currentLevel];
+                const startX = Math.max(0, Math.floor(camera.x / TILE_SIZE) - 1);
+                const endX = Math.min(level.width - 1, Math.ceil((camera.x + GAME_WIDTH) / TILE_SIZE) + 1);
+                const startY = 0;
+                const endY = 12;
+
+                for (let tx = startX; tx <= endX; tx++) {
+                    for (let ty = startY; ty <= endY; ty++) {
+                        const tile = level.tiles[tx][ty];
+                        if (tile === 0) continue;
+                        const px = tx * TILE_SIZE;
+                        const py = ty * TILE_SIZE;
+
+                        switch (tile) {
+                            case 1:
+                                drawPlatformTile(px, py, level);
+                                break;
+                            case 2:
+                                drawSpikeTile(px, py);
+                                break;
+                            case 3:
+                                drawCoinTile(px, py);
+                                break;
+                            case 6:
+                                drawCheckpointTile(px, py);
+                                break;
+                            case 8:
+                                drawGemTile(px, py);
+                                break;
+                            case 9:
+                                drawDoorTile(px, py);
+                                break;
+                        }
+                    }
+                }
+            }
+
+            function drawPlatformTile(px, py, level) {
+                const tileX = Math.floor(px / TILE_SIZE);
+                const tileY = Math.floor(py / TILE_SIZE);
+                const hasTop = tileY === 0 || level.tiles[tileX][tileY - 1] === 0;
+
+                const grad = ctx.createLinearGradient(px, py, px, py + TILE_SIZE);
+                if (hasTop) {
+                    grad.addColorStop(0, level.platformTopColor);
+                    grad.addColorStop(0.3, level.platformColor);
+                    grad.addColorStop(1, level.platformColor);
+                } else {
+                    grad.addColorStop(0, level.platformColor);
+                    grad.addColorStop(1, level.platformColor);
+                }
+                ctx.fillStyle = grad;
+                ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+
+                if (hasTop) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                    ctx.fillRect(px + 2, py + 2, TILE_SIZE - 4, 4);
+                    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                    ctx.fillRect(px + 2, py + 6, TILE_SIZE - 4, 2);
+                }
+
+                ctx.fillStyle = 'rgba(0,0,0,0.08)';
+                const seed = tileX * 7 + tileY * 13;
+                if (seed % 3 === 0) {
+                    ctx.fillRect(px + 5, py + 15, 8, 4);
+                    ctx.fillRect(px + 25, py + 22, 6, 3);
+                } else if (seed % 3 === 1) {
+                    ctx.fillRect(px + 15, py + 12, 5, 3);
+                    ctx.fillRect(px + 8, py + 25, 9, 4);
+                }
+            }
+
+            function drawSpikeTile(px, py) {
+                const spikeCount = 3;
+                const spikeWidth = TILE_SIZE / spikeCount;
+                for (let i = 0; i < spikeCount; i++) {
+                    const sx = px + i * spikeWidth + spikeWidth / 2;
+                    const baseY = py + TILE_SIZE;
+                    const spikeHeight = TILE_SIZE * 0.75;
+                    const grad = ctx.createLinearGradient(sx, baseY, sx, baseY - spikeHeight);
+                    grad.addColorStop(0, '#6a6a8a');
+                    grad.addColorStop(0.4, '#9a9aaa');
+                    grad.addColorStop(1, '#dddddd');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.moveTo(sx - spikeWidth * 0.4, baseY);
+                    ctx.lineTo(sx, baseY - spikeHeight);
+                    ctx.lineTo(sx + spikeWidth * 0.4, baseY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+                }
+            }
+
+            function drawCoinTile(px, py) {
+                const cx = px + TILE_SIZE / 2;
+                const cy = py + TILE_SIZE / 2;
+                const bob = Math.sin(gameTime * 0.12 + px * 0.1 + py * 0.15) * 3;
+                const scaleX = Math.abs(Math.cos(gameTime * 0.08 + px * 0.05));
+                const coinRadius = 12;
+
+                ctx.save();
+                ctx.translate(cx, cy + bob);
+                ctx.scale(Math.max(0.2, scaleX), 1);
+
+                const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, coinRadius * 2);
+                glow.addColorStop(0, 'rgba(255,215,0,0.4)');
+                glow.addColorStop(1, 'rgba(255,215,0,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(0, 0, coinRadius * 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                const coinGrad = ctx.createRadialGradient(-3, -3, 1, 0, 0, coinRadius);
+                coinGrad.addColorStop(0, '#ffec8b');
+                coinGrad.addColorStop(0.5, '#ffd700');
+                coinGrad.addColorStop(1, '#cc9900');
+                ctx.fillStyle = coinGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, coinRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#aa7700';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.strokeStyle = 'rgba(170,119,0,0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, coinRadius * 0.6, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            function drawCheckpointTile(px, py) {
+                const cx = px + TILE_SIZE / 2;
+                const cy = py + TILE_SIZE / 2;
+                const pulse = Math.sin(gameTime * 0.1) * 0.3 + 0.7;
+
+                ctx.fillStyle = `rgba(46,213,115,${pulse * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#888';
+                ctx.fillRect(cx - 1.5, py + 5, 3, TILE_SIZE - 8);
+                ctx.fillStyle = '#2ed573';
+                ctx.beginPath();
+                ctx.moveTo(cx + 1.5, py + 7);
+                ctx.lineTo(cx + 18, py + 12);
+                ctx.lineTo(cx + 1.5, py + 17);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('★', cx + 7, py + 15);
+            }
+
+            function drawGemTile(px, py) {
+                const cx = px + TILE_SIZE / 2;
+                const cy = py + TILE_SIZE / 2;
+                const bob = Math.sin(gameTime * 0.1 + px * 0.07) * 4;
+                const pulse = Math.sin(gameTime * 0.15 + px * 0.05) * 0.3 + 1;
+
+                ctx.save();
+                ctx.translate(cx, cy + bob);
+                ctx.scale(1, pulse);
+
+                const glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 28);
+                glow.addColorStop(0, 'rgba(0,229,255,0.5)');
+                glow.addColorStop(1, 'rgba(0,229,255,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(0, 0, 28, 0, Math.PI * 2);
+                ctx.fill();
+
+                const size = 13;
+                ctx.fillStyle = '#00e5ff';
+                ctx.beginPath();
+                ctx.moveTo(0, -size);
+                ctx.lineTo(size * 0.7, 0);
+                ctx.lineTo(0, size);
+                ctx.lineTo(-size * 0.7, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.beginPath();
+                ctx.moveTo(0, -size * 0.6);
+                ctx.lineTo(size * 0.25, -size * 0.1);
+                ctx.lineTo(0, size * 0.15);
+                ctx.lineTo(-size * 0.2, -size * 0.1);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            function drawDoorTile(px, py) {
+                const cx = px + TILE_SIZE / 2;
+                const cy = py + TILE_SIZE / 2;
+                const pulse = Math.sin(gameTime * 0.08) * 0.25 + 0.75;
+
+                const glowGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 35);
+                glowGrad.addColorStop(0, `rgba(255,200,50,${pulse * 0.6})`);
+                glowGrad.addColorStop(1, 'rgba(255,200,50,0)');
+                ctx.fillStyle = glowGrad;
+                ctx.fillRect(px - 20, py - 20, TILE_SIZE + 40, TILE_SIZE + 40);
+
+                ctx.fillStyle = '#8a7a3a';
+                ctx.fillRect(px + 5, py, 8, TILE_SIZE);
+                ctx.fillRect(px + TILE_SIZE - 13, py, 8, TILE_SIZE);
+                ctx.fillStyle = '#aa9a4a';
+                ctx.fillRect(px + 3, py - 2, TILE_SIZE - 6, 8);
+                const doorGrad = ctx.createLinearGradient(px + 13, py, px + TILE_SIZE - 13, py);
+                doorGrad.addColorStop(0, `rgba(255,220,80,${pulse * 0.8})`);
+                doorGrad.addColorStop(0.5, `rgba(255,255,200,${pulse * 0.9})`);
+                doorGrad.addColorStop(1, `rgba(255,220,80,${pulse * 0.8})`);
+                ctx.fillStyle = doorGrad;
+                ctx.fillRect(px + 13, py + 2, TILE_SIZE - 26, TILE_SIZE - 4);
+                ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+                for (let i = 0; i < 3; i++) {
+                    const sx = px + 18 + (i * (TILE_SIZE - 36) / 2);
+                    const sy = py + 12 + Math.sin(gameTime * 0.15 + i * 2) * 12;
+                    ctx.fillRect(sx, sy, 2, 2);
+                }
+            }
+
+            function drawHUD() {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 20px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.shadowColor = 'rgba(0,0,0,0.7)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(`分数: ${score}`, 15, 30);
+                ctx.fillStyle = '#ffd700';
+                ctx.fillText('🪙 ' + totalCoins, 15, 56);
+                ctx.fillStyle = '#ff6b6b';
+                ctx.fillText('❤️ ' + lives, 15, 82);
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '14px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`${currentLevel + 1}/${levels.length} - ${levels[currentLevel].name}`, GAME_WIDTH - 15, 25);
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '11px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText('←→移动 (地面反转) | ↑/空格跳跃 | 二段跳可用', GAME_WIDTH - 15, GAME_HEIGHT - 10);
+                ctx.shadowBlur = 0;
+            }
+
+            function drawMenu() {
+                const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+                grad.addColorStop(0, '#0a0a20');
+                grad.addColorStop(1, '#1a0a3a');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                starField.forEach(star => {
+                    star.y += star.speed;
+                    if (star.y > GAME_HEIGHT) star.y = 0;
+                    const twinkle = Math.sin(gameTime * star.twinkleSpeed * 20 + star.phase) * 0.3 + 0.7;
+                    ctx.globalAlpha = star.brightness * twinkle;
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+
+                const titleY = GAME_HEIGHT * 0.22;
+                const titleBob = Math.sin(gameTime * 0.04) * 6;
+
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 56px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('⭐ 星尘冒险 ⭐', GAME_WIDTH / 2, titleY + titleBob);
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('— 穿越三界的平台之旅 —', GAME_WIDTH / 2, titleY + titleBob + 40);
+                ctx.shadowBlur = 0;
+
+                const menuItems = ['开始游戏', '音效: 开', '操作说明'];
+                const menuY = GAME_HEIGHT * 0.52;
+                menuItems.forEach((item, i) => {
+                    const isSelected = i === menuSelection;
+                    const yPos = menuY + i * 50;
+                    if (isSelected) {
+                        ctx.fillStyle = 'rgba(255,215,0,0.2)';
+                        ctx.beginPath();
+                        ctx.roundRect(GAME_WIDTH / 2 - 140, yPos - 25, 280, 40, 12);
+                        ctx.fill();
+                        ctx.strokeStyle = '#ffd700';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        ctx.fillStyle = '#ffd700';
+                        ctx.font = 'bold 24px "Segoe UI", "PingFang SC", sans-serif';
+                    } else {
+                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                        ctx.font = '20px "Segoe UI", "PingFang SC", sans-serif';
+                    }
+                    if (i === 1) {
+                        const status = soundEnabled ? '音效: 开' : '音效: 关';
+                        if (isSelected) {
+                            ctx.fillStyle = '#ffd700';
+                            ctx.font = 'bold 24px "Segoe UI", "PingFang SC", sans-serif';
+                        } else {
+                            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                            ctx.font = '20px "Segoe UI", "PingFang SC", sans-serif';
+                        }
+                        ctx.fillText(status, GAME_WIDTH / 2, yPos + 8);
+                    } else {
+                        ctx.fillText(item, GAME_WIDTH / 2, yPos + 8);
+                    }
+                });
+
+                if (Math.random() < 0.1) {
+                    spawnParticles(Math.random() * GAME_WIDTH, GAME_HEIGHT + 10, 1, '#ffd700', 2, 2, 60, -0.03);
+                }
+
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '14px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('使用 ↑↓ 选择 · Enter 确认', GAME_WIDTH / 2, GAME_HEIGHT - 40);
+            }
+
+            function drawGameOver() {
+                ctx.fillStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#ff4757';
+                ctx.shadowBlur = 25;
+                ctx.fillStyle = '#ff4757';
+                ctx.font = 'bold 50px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('游戏结束', GAME_WIDTH / 2, GAME_HEIGHT * 0.4);
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#fff';
+                ctx.font = '22px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText(`最终得分: ${score} | 收集金币: ${totalCoins}`, GAME_WIDTH / 2, GAME_HEIGHT * 0.52);
+                ctx.fillStyle = '#ffd700';
+                ctx.font = '18px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('按 Enter 重新开始', GAME_WIDTH / 2, GAME_HEIGHT * 0.62);
+                ctx.shadowBlur = 0;
+            }
+
+            function drawVictory() {
+                const grad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+                grad.addColorStop(0, '#0a0a30');
+                grad.addColorStop(1, '#2a0a5a');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                if (Math.random() < 0.3) {
+                    const colors = ['#ffd700', '#ff6b6b', '#2ed573', '#00e5ff', '#ff9ff3', '#ffec8b'];
+                    spawnParticles(Math.random() * GAME_WIDTH, Math.random() * GAME_HEIGHT * 0.6, 3,
+                        colors[Math.floor(Math.random() * colors.length)], 3, 3, 50, -0.02);
+                }
+
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 40;
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 60px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('🎉 恭喜通关! 🎉', GAME_WIDTH / 2, GAME_HEIGHT * 0.32);
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#fff';
+                ctx.font = '26px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText(`总得分: ${score}`, GAME_WIDTH / 2, GAME_HEIGHT * 0.46);
+                ctx.fillStyle = '#ffd700';
+                ctx.fillText(`收集金币: ${totalCoins} 🪙`, GAME_WIDTH / 2, GAME_HEIGHT * 0.54);
+                ctx.fillStyle = '#2ed573';
+                ctx.font = '20px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('你完成了所有三个世界的冒险!', GAME_WIDTH / 2, GAME_HEIGHT * 0.64);
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.font = '18px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('按 Enter 回到主菜单', GAME_WIDTH / 2, GAME_HEIGHT * 0.76);
+                ctx.shadowBlur = 0;
+            }
+
+            function drawLevelTransition() {
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 36px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 20;
+                const levelName = levels[currentLevel] ? levels[currentLevel].name : '';
+                ctx.fillText(`进入: ${levelName}`, GAME_WIDTH / 2, GAME_HEIGHT / 2);
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.font = '16px "Segoe UI", "PingFang SC", sans-serif';
+                ctx.fillText('准备...', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 40);
+            }
+
+            // ==================== 主游戏循环 ====================
+            function update() {
+                gameTime++;
+
+                particles = particles.filter(p => p.update());
+                floatingTexts = floatingTexts.filter(ft => ft.update());
+
+                if (screenShake > 0) screenShake *= 0.85;
+                if (screenShake < 0.1) screenShake = 0;
+
+                if (gameState === GameState.MENU) {
+                    return;
+                }
+
+                if (gameState === GameState.PLAYING) {
+                    player.update();
+                    handleTileCollisions();
+                    handleTileEffects();
+                    handleEnemyCollisions();
+                    handleMovingPlatforms();
+                    enemies.forEach(e => e.update());
+                    movingPlatforms.forEach(p => p.update());
+
+                    camera.targetX = player.x - GAME_WIDTH / 2;
+                    camera.targetY = player.y - GAME_HEIGHT / 2 + 20;
+                    const maxCamX = levels[currentLevel].width * TILE_SIZE - GAME_WIDTH;
+                    camera.targetX = Math.max(0, Math.min(camera.targetX, maxCamX));
+                    camera.targetY = Math.max(-50, Math.min(camera.targetY, GAME_HEIGHT * 0.3));
+                    camera.x += (camera.targetX - camera.x) * 0.1;
+                    camera.y += (camera.targetY - camera.y) * 0.1;
+                    camera.shakeX = (Math.random() - 0.5) * screenShake;
+                    camera.shakeY = (Math.random() - 0.5) * screenShake;
+
+                    jumpPressed = false;
+                } else if (gameState === GameState.LEVEL_TRANSITION) {
+                    transitionTimer--;
+                    if (transitionTimer <= 0) {
+                        initLevel();
+                        gameState = GameState.PLAYING;
+                    }
+                }
+            }
+
+            function render() {
+                ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                if (gameState === GameState.MENU) {
+                    drawMenu();
+                    particles.forEach(p => p.draw(ctx));
+                    return;
+                }
+
+                if (gameState === GameState.VICTORY) {
+                    drawVictory();
+                    particles.forEach(p => p.draw(ctx));
+                    return;
+                }
+
+                if (gameState === GameState.GAME_OVER) {
+                    drawGameOver();
+                    return;
+                }
+
+                if (gameState === GameState.LEVEL_TRANSITION) {
+                    drawLevelTransition();
+                    return;
+                }
+
+                ctx.save();
+                ctx.translate(-camera.x - camera.shakeX, -camera.y - camera.shakeY);
+                drawBackground();
+                drawTiles();
+                movingPlatforms.forEach(p => p.draw(ctx));
+                enemies.forEach(e => e.draw(ctx));
+                player.draw(ctx);
+                particles.forEach(p => p.draw(ctx));
+                floatingTexts.forEach(ft => ft.draw(ctx));
+                ctx.restore();
+
+                drawHUD();
+            }
+
+            function gameLoop() {
+                update();
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+
+            // ==================== 输入处理 ====================
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+                    e.preventDefault();
+                    if (!jumpPressed) {
+                        jumpPressed = true;
+                    }
+                }
+                if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                    e.preventDefault();
+                }
+                if (gameState === GameState.MENU) {
+                    if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+                        menuSelection = (menuSelection - 1 + 3) % 3;
+                    } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+                        menuSelection = (menuSelection + 1) % 3;
+                    } else if (e.code === 'Enter' || e.code === 'Space') {
+                        handleMenuSelect();
+                    }
+                } else if (gameState === GameState.GAME_OVER || gameState === GameState.VICTORY) {
+                    if (e.code === 'Enter' || e.code === 'Space') {
+                        if (gameState === GameState.GAME_OVER) {
+                            resetGame();
+                        } else {
+                            gameState = GameState.MENU;
+                        }
+                    }
+                } else if (gameState === GameState.PLAYING) {
+                    if (e.code === 'Escape' || e.code === 'KeyP') {
+                        gameState = GameState.PAUSED;
+                    }
+                } else if (gameState === GameState.PAUSED) {
+                    if (e.code === 'Escape' || e.code === 'KeyP') {
+                        gameState = GameState.PLAYING;
+                    }
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                keys[e.code] = false;
+                if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+                    jumpPressed = false;
+                }
+            });
+
+            function handleMenuSelect() {
+                if (menuSelection === 0) {
+                    resetGame();
+                } else if (menuSelection === 1) {
+                    soundEnabled = !soundEnabled;
+                    if (soundEnabled && !audioCtx) initAudio();
+                } else if (menuSelection === 2) {
+                    alert('操作说明:\n\n← → 或 A D: 移动（地面反转）\n↑ 或 W 或 空格: 跳跃\n空中再按一次跳跃: 二段跳\n\n避开尖刺和敌人\n收集金币和宝石\n到达终点门过关!');
+                }
+            }
+
+            const btnLeft = document.getElementById('btn-left');
+            const btnRight = document.getElementById('btn-right');
+            const btnJump = document.getElementById('btn-jump');
+
+            btnLeft.addEventListener('touchstart', (e) => { e.preventDefault();
+                touchState.left = true; });
+            btnLeft.addEventListener('touchend', () => { touchState.left = false; });
+            btnRight.addEventListener('touchstart', (e) => { e.preventDefault();
+                touchState.right = true; });
+            btnRight.addEventListener('touchend', () => { touchState.right = false; });
+            btnJump.addEventListener('touchstart', (e) => { e.preventDefault();
+                touchState.jump = true;
+                jumpPressed = true; });
+            btnJump.addEventListener('touchend', () => { touchState.jump = false;
+                jumpPressed = false; });
+
+            canvas.addEventListener('click', () => {
+                if (gameState === GameState.MENU) {
+                    handleMenuSelect();
+                } else if (gameState === GameState.GAME_OVER) {
+                    resetGame();
+                } else if (gameState === GameState.VICTORY) {
+                    gameState = GameState.MENU;
+                }
+            });
+
+            if (!CanvasRenderingContext2D.prototype.roundRect) {
+                CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                    if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+                    this.moveTo(x + r.tl, y);
+                    this.lineTo(x + w - r.tr, y);
+                    this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+                    this.lineTo(x + w, y + h - r.br);
+                    this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+                    this.lineTo(x + r.bl, y + h);
+                    this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+                    this.lineTo(x, y + r.tl);
+                    this.quadraticCurveTo(x, y, x + r.tl, y);
+                    this.closePath();
+                    return this;
+                };
+            }
+
+            createLevels();
+            initStarField();
+            initLevel();
+            gameState = GameState.MENU;
+            gameLoop();
+
+            function handleResize() {
+                const container = document.getElementById('game-container');
+                const maxWidth = window.innerWidth * 0.98;
+                const maxHeight = window.innerHeight * 0.98;
+                const aspectRatio = GAME_WIDTH / GAME_HEIGHT;
+                let w = Math.min(maxWidth, 960);
+                let h = w / aspectRatio;
+                if (h > maxHeight) {
+                    h = maxHeight;
+                    w = h * aspectRatio;
+                }
+                container.style.width = w + 'px';
+                container.style.height = h + 'px';
+            }
+            window.addEventListener('resize', handleResize);
+            handleResize();
+
+            console.log('⭐ 星尘冒险已加载（反转控制版）!');
+            console.log('🎮 操作: 方向键/AD移动（地面反转） | 空格/上键跳跃 | 二段跳可用');
+            console.log('🪙 收集金币和宝石，避开敌人和尖刺，到达终点门!');
+        })();
+    </script>
+</body>
+</html>
