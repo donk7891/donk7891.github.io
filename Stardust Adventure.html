@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>星尘冒险 - 反转控制版</title>
+    <title>星尘冒险</title>
     <style>
         :root {
             --bg-dark: #0a0a1a;
@@ -188,6 +188,10 @@
             let starField = [];
             let audioCtx = null;
             let soundEnabled = true;
+            // 作弊系统
+            const KONAMI_CODE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+            let konamiInput = [];
+            let cheatInvincible = false;
 
             // ==================== 输入系统 ====================
             const keys = {};
@@ -540,7 +544,6 @@
                         tiles[x][y] = 1;
                     }
                 }
-                tiles[3][10] = 0;
                 for (let x = 5; x < 10; x++) tiles[x][8] = 3;
                 for (let x = 12; x < 15; x++) tiles[x][7] = 3;
                 tiles[11][8] = 1;
@@ -636,7 +639,6 @@
                         tiles[x][y] = 1;
                     }
                 }
-                tiles[3][10] = 0;
                 for (let x = 4; x < 8; x++) tiles[x][7] = 3;
                 tiles[5][6] = 3;
                 tiles[6][6] = 3;
@@ -754,7 +756,6 @@
                         tiles[x][y] = 1;
                     }
                 }
-                tiles[3][10] = 0;
                 for (let x = 5; x < 12; x++) {
                     tiles[x][6] = 1;
                 }
@@ -870,13 +871,7 @@
                     if (keys['ArrowLeft'] || keys['KeyA'] || touchState.left) moveX = -1;
                     if (keys['ArrowRight'] || keys['KeyD'] || touchState.right) moveX = 1;
 
-                    // ★★★ 新增特性：在地面上时反转左右控制 ★★★
-                    // 根据用户需求：在地上按左往右，按右往左；浮空时正常
-                    if (this.onGround) {
-                        moveX *= -1;
-                    }
-
-                    if (jumpPressed || keys['ArrowUp'] || keys['KeyW'] || keys['Space'] || touchState.jump) {
+                    if (jumpPressed) {
                         if (jumpBuffered === 0) {
                             jumpBuffered = JUMP_BUFFER;
                         }
@@ -954,6 +949,7 @@
                 }
 
                 die() {
+                    if (cheatInvincible) return;
                     spawnParticles(this.x, this.y + this.height / 2, 25, '#ff4757', 4, 4, 25, 0.15);
                     lives--;
                     playSound('hurt');
@@ -1047,6 +1043,20 @@
                         ctx.fillStyle = glow;
                         ctx.beginPath();
                         ctx.arc(this.x, this.y, 30, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                    // 作弊无敌：金色脉动光环
+                    if (cheatInvincible) {
+                        const pulse = Math.sin(gameTime * 0.15) * 0.25 + 0.55;
+                        ctx.globalAlpha = pulse;
+                        const cheatGlow = ctx.createRadialGradient(this.x, this.y - this.height / 2, 4, this.x, this.y - this.height / 2, 38);
+                        cheatGlow.addColorStop(0, 'rgba(255,215,0,0.7)');
+                        cheatGlow.addColorStop(0.5, 'rgba(255,180,0,0.3)');
+                        cheatGlow.addColorStop(1, 'rgba(255,215,0,0)');
+                        ctx.fillStyle = cheatGlow;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y - this.height / 2, 38, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.globalAlpha = 1;
                     }
@@ -1263,6 +1273,7 @@
             let coinAnimation = 0;
 
             function initLevel() {
+                lives = 3;
                 const level = levels[currentLevel];
                 player = new Player(level.spawnX, level.spawnY);
                 player.checkpointX = level.spawnX * TILE_SIZE + TILE_SIZE / 2;
@@ -1278,10 +1289,13 @@
                         const tile = level.tiles[x][y];
                         if (tile === 4) {
                             enemies.push(new Enemy(x, y, 'patrol'));
+                            level.tiles[x][y] = 0;
                         } else if (tile === 5) {
                             enemies.push(new Enemy(x, y, 'flying'));
+                            level.tiles[x][y] = 0;
                         } else if (tile === 7) {
                             movingPlatforms.push(new MovingPlatform(x, y, 0, TILE_SIZE * 1.8, 1.2));
+                            level.tiles[x][y] = 0;
                         }
                     }
                 }
@@ -1339,7 +1353,7 @@
             }
 
             function isSolid(tile) {
-                return tile === 1 || tile === 7;
+                return tile === 1;
             }
 
             function handleTileCollisions() {
@@ -1347,8 +1361,8 @@
                 const level = levels[currentLevel];
 
                 const horizontalCheck = {
-                    x: player.x + player.vx,
-                    y: player.y,
+                    x: player.x - player.width / 2 + player.vx,
+                    y: player.y - player.height,
                     width: player.width,
                     height: player.height,
                 };
@@ -1425,7 +1439,7 @@
                 const bounds = player.getBounds();
                 const level = levels[currentLevel];
 
-                const footTile = getTileAt(player.x, player.y + 3);
+                const footTile = getTileAt(player.x, player.y - 5);
                 if (footTile === 2) {
                     if (player.invincible <= 0) {
                         player.die();
@@ -1805,6 +1819,11 @@
                 ctx.fillText('🪙 ' + totalCoins, 15, 56);
                 ctx.fillStyle = '#ff6b6b';
                 ctx.fillText('❤️ ' + lives, 15, 82);
+                if (cheatInvincible) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = 'bold 14px "Segoe UI", "PingFang SC", sans-serif';
+                    ctx.fillText('★ 无敌 ★', 15, 104);
+                }
                 ctx.fillStyle = 'rgba(255,255,255,0.7)';
                 ctx.font = '14px "Segoe UI", "PingFang SC", sans-serif';
                 ctx.textAlign = 'right';
@@ -1812,7 +1831,7 @@
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.font = '11px "Segoe UI", "PingFang SC", sans-serif';
                 ctx.textAlign = 'right';
-                ctx.fillText('←→移动 (地面反转) | ↑/空格跳跃 | 二段跳可用', GAME_WIDTH - 15, GAME_HEIGHT - 10);
+                ctx.fillText('←→移动 | ↑/空格跳跃 | 二段跳可用', GAME_WIDTH - 15, GAME_HEIGHT - 10);
                 ctx.shadowBlur = 0;
             }
 
@@ -2053,6 +2072,22 @@
             // ==================== 输入处理 ====================
             window.addEventListener('keydown', (e) => {
                 keys[e.code] = true;
+                // Konami 作弊码检测：上上下下左右左右BA
+                konamiInput.push(e.code);
+                if (konamiInput.length > KONAMI_CODE.length) {
+                    konamiInput.shift();
+                }
+                if (konamiInput.length === KONAMI_CODE.length &&
+                    konamiInput.every((v, i) => v === KONAMI_CODE[i])) {
+                    cheatInvincible = !cheatInvincible;
+                    konamiInput = [];
+                    if (cheatInvincible) {
+                        playSound('checkpoint');
+                        if (player) addFloatingText(player.x, player.y - 50, '★ 无敌模式! ★', '#ffd700', 24);
+                    } else {
+                        if (player) addFloatingText(player.x, player.y - 50, '无敌关闭', '#ffffff', 20);
+                    }
+                }
                 if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
                     e.preventDefault();
                     if (!jumpPressed) {
@@ -2103,7 +2138,7 @@
                     soundEnabled = !soundEnabled;
                     if (soundEnabled && !audioCtx) initAudio();
                 } else if (menuSelection === 2) {
-                    alert('操作说明:\n\n← → 或 A D: 移动（地面反转）\n↑ 或 W 或 空格: 跳跃\n空中再按一次跳跃: 二段跳\n\n避开尖刺和敌人\n收集金币和宝石\n到达终点门过关!');
+                    alert('操作说明:\n\n← → 或 A D: 移动\n↑ 或 W 或 空格: 跳跃\n空中再按一次跳跃: 二段跳\n\n避开尖刺和敌人\n收集金币和宝石\n到达终点门过关!');
                 }
             }
 
@@ -2173,8 +2208,8 @@
             window.addEventListener('resize', handleResize);
             handleResize();
 
-            console.log('⭐ 星尘冒险已加载（反转控制版）!');
-            console.log('🎮 操作: 方向键/AD移动（地面反转） | 空格/上键跳跃 | 二段跳可用');
+            console.log('⭐ 星尘冒险已加载!');
+            console.log('🎮 操作: 方向键/AD移动 | 空格/上键跳跃 | 二段跳可用');
             console.log('🪙 收集金币和宝石，避开敌人和尖刺，到达终点门!');
         })();
     </script>
